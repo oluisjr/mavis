@@ -1,0 +1,67 @@
+{
+    "VELOCIDADE": {
+        "causas_provaveis": [
+            "- Desgaste nos rolamentos do motor de tração.",
+            "- Falha no encoder de velocidade.",
+            "- Obstrução mecânica na linha."
+        ],
+        "acoes_recomendadas": [
+            "- Inspecionar e lubrificar rolamentos na próxima parada.",
+            "- Agendar verificação do encoder com a equipe de elétrica."
+        ]
+    },
+    "CORRENTE": {
+        "causas_provaveis": [
+            "- Queima ou quebra de diodo",
+            "- Problema no tiristor do transformador.",
+            "- Mau contato nos cabos de potência."
+        ],
+        "acoes_recomendadas": [
+            "- Verificar (e substituir se necessário) os diodos.",
+            "- Programar inspeção do painel de potência."
+        ]
+    },
+    "PRESSAO_SOLDA": {
+        "causas_provaveis": [
+            "- Vazamento no cilindro pneumático.",
+            "- Válvula reguladora de pressão descalibrada."
+        ],
+        "acoes_recomendadas": [
+            "- Inspecionar linha de ar comprimido em busca de vazamentos.",
+            "- Calibrar válvula de controle de pressão."
+        ]
+    },
+    "TEMPERATURA": {
+        "causas_provaveis": [
+            "- Entupimento da tubulação e conexão de água de entrada e saída do transformador.",
+            "- Vazamento da água de refrigeração do transformador",
+            "- Obstrução no radiador ou trocador de calor.",
+            "- Pirômetro descalibrado ou defeituoso."
+        ],
+        "acoes_recomendadas": [
+            "- Inspeção da mangueira de entrada e saída de refrigeração do transformador.",
+            "- Inspeção das abraçadeiras das mangueiras",
+            "- Realizar limpeza preventiva do trocador de calor/radiador.",
+            "- Verificar posição do Pirômetro"
+        ]
+    },
+    "PRESSAO_MARTELADOR": {
+        "causas_provaveis": [
+            "- Vazamento de ar comprimido na linha de alimentação do martelador.",
+            "- Válvula direcional com desgaste ou travamento.",
+            "- Atuador pneumático do martelador com vedação danificada."
+        ],
+        "acoes_recomendadas": [
+            "- Verificar se há queda de pressão na rede principal de ar comprimido.",
+            "- Inspecionar e substituir filtros de ar comprimido se necessário."
+        ]
+    },
+    "DEFAULT": {
+        "causas_provaveis": [
+            "- Base de conhecimento não configurada para este sensor."
+        ],
+        "acoes_recomendadas": [
+            "- Verificar o dicionário de configuração da Causa Raiz no código."
+        ]
+    }
+}
