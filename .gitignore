@@ -1,0 +1,14 @@
+# Ignorar a pasta de dados inteira
+data/
+
+# Ignorar o arquivo de variáveis de ambiente
+.env
+
+# Ignorar arquivos comuns do Python e de sistema
+__pycache__/
+*.pyc
+.DS_Store
+
+# Ignorar ambientes virtuais
+venv/
+.venv/
