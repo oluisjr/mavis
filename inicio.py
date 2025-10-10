@@ -17,7 +17,7 @@ ui_components.hide_streamlit_elements()
 # Ele garante que as chaves dos filtros sempre existam.
 if 'filtros_aplicados' not in st.session_state:
     st.session_state.filtros_aplicados = {
-        'receita_fmt': '123',
+        'receita_fmt': '580',
         'entry_code': 'Todos',
         'exit_code': 'Todos',
         'anos': [], 
@@ -35,4 +35,5 @@ if not df_total_completo.empty and not st.session_state.filtros_aplicados['anos'
 st.title("Carregando MAVIS...")
 st.info("Você será redirecionado para o painel principal.")
 st.switch_page("pages/0_🏠_Sumário_Executivo.py")
+
 
