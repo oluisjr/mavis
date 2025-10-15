@@ -224,8 +224,8 @@ else:
                 nome_formatado = get_formatted_sensor_name(sensor)
                 st.markdown(f"<p style='text-align: center; font-weight: bold;'>{nome_formatado}</p>", unsafe_allow_html=True)
                 gauge_html = ui_components.render_liquid_chart_individual(score, nome_formatado)
-                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 100px; width: 100%;">{gauge_html}</div>"""
-                components.html(centered_liquid_html, height=150)
+                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 150px; width: 100%;">{gauge_html}</div>"""
+                components.html(centered_liquid_html, height=180)
 
     
     st.markdown("---")
@@ -289,3 +289,4 @@ else:
             
     st.markdown("---")
     st.caption("Developed by *Luis Ignacio* - 2025")
+
