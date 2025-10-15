@@ -1,9 +1,11 @@
 import streamlit as st
 import pandas as pd
-from app import config, analysis, ui_components, data_loader
+from app import config, analysis, ui_components, data_loader, session_manager
 import streamlit.components.v1 as components
 from pyecharts import options as opts
 from pyecharts.charts import HeatMap
+
+session_manager.initialize_session_state()
 
 # --- Configurações, Sidebar e Cabeçalho ---
 if 'error_occurred' not in st.session_state:
