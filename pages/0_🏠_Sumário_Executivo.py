@@ -4,9 +4,11 @@ import streamlit.components.v1 as components
 import traceback
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from app import config, data_loader, ui_components, analysis
+from app import config, data_loader, ui_components, analysis, session_manager
 
 # --- Lógica de Controle de Erro e Configuração da Página ---
+
+session_manager.initialize_session_state()
 
 if 'error_occurred' not in st.session_state:
     st.session_state.error_occurred = False
@@ -66,7 +68,6 @@ if st.session_state.error_occurred:
     st.session_state.error_occurred = False
 
 # --- LÓGICA DE CARREGAMENTO DE DADOS ---
-# Lê os filtros do estado da sessão de forma segura.
 filtros = st.session_state.get('filtros_aplicados', {})
 receita_str = filtros.get('receita_fmt', '123') # Padrão para '123' se algo falhar
 
@@ -221,8 +222,10 @@ else:
                 risco = riscos_para_analise.get(sensor, 0)
                 score = analysis.calcular_health_score(risco)
                 nome_formatado = get_formatted_sensor_name(sensor)
-                gauge_html = ui_components.gerar_gauge_individual_html(score, nome_formatado)
-                components.html(gauge_html, height=180)
+                st.markdown(f"<p style='text-align: center; font-weight: bold;'>{nome_formatado}</p>", unsafe_allow_html=True)
+                gauge_html = ui_components.render_liquid_chart_individual(score, nome_formatado)
+                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 100px; width: 100%;">{gauge_html}</div>"""
+                components.html(centered_liquid_html, height=150)
 
     
     st.markdown("---")
@@ -254,8 +257,9 @@ else:
                 score_critico = analysis.calcular_health_score(risco_critico)
                 nome_critico = get_formatted_sensor_name(sensor_critico)
 
-                gauge_foco_html = ui_components.gerar_gauge_foco_html(score_critico, nome_critico)
-                components.html(gauge_foco_html, height=240)
+                gauge_foco_html = ui_components.render_liquid_chart_foco(score_critico, nome_critico)
+                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 150px; width: 100%;">{gauge_foco_html}</div>"""
+                components.html(centered_liquid_html, height=180)
 
             else:
                 # Caso todos os sensores estejam inoperantes
@@ -285,4 +289,3 @@ else:
             
     st.markdown("---")
     st.caption("Developed by *Luis Ignacio* - 2025")
-
