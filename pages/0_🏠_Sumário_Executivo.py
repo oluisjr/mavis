@@ -258,8 +258,8 @@ else:
                 nome_critico = get_formatted_sensor_name(sensor_critico)
 
                 gauge_foco_html = ui_components.render_liquid_chart_foco(score_critico, nome_critico)
-                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 150px; width: 100%;">{gauge_foco_html}</div>"""
-                components.html(centered_liquid_html, height=180)
+                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 190px; width: 100%;">{gauge_foco_html}</div>"""
+                components.html(centered_liquid_html, height=220)
 
             else:
                 # Caso todos os sensores estejam inoperantes
@@ -289,4 +289,5 @@ else:
             
     st.markdown("---")
     st.caption("Developed by *Luis Ignacio* - 2025")
+
 
