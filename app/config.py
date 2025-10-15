@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- Caminhos Base ---
+PASSWORDS_STRING = os.getenv("VALID_PASSWORDS", "")
+VALID_PASSWORDS = [pwd.strip() for pwd in PASSWORDS_STRING.split(',') if pwd]
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 ASSETS_DIR = BASE_DIR / "assets"
