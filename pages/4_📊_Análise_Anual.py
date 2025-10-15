@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
-from app import config, analysis, ui_components, data_loader
+from app import config, analysis, ui_components, data_loader, session_manager
+
+session_manager.initialize_session_state()
 
 # --- Configurações, Sidebar e Cabeçalho ---
 if 'error_occurred' not in st.session_state:
