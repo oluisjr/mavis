@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
-from app import config, analysis, ui_components, data_loader
+from app import config, analysis, ui_components, data_loader, session_manager
 import streamlit.components.v1 as components
 
+session_manager.initialize_session_state()
 
 # --- Configurações, Sidebar e Cabeçalho ---
 if 'error_occurred' not in st.session_state:
@@ -191,6 +192,5 @@ else:
         #             st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
         #         else:
         #             st.info("Tudo normal por aqui...")
-
 
 
