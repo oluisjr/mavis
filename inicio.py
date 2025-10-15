@@ -16,7 +16,6 @@ st.set_page_config(
 ui_components.hide_streamlit_elements()
 
 # --- Renderização do Cabeçalho ---
-st.image(config.LOGO_PATH, width=150)
 ui_components.render_mavis_header()
 st.markdown("---")
 
@@ -51,4 +50,5 @@ if not st.session_state.get('authenticated', False):
 else:
     st.success("Login bem-sucedido! A redirecionar...")
     st.switch_page("pages/0_🏠_Sumário_Executivo.py")
+
 
