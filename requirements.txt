@@ -1,7 +1,9 @@
-pandas
 streamlit
-requests
-python-dotenv
-pyecharts
-joblib
+pandas
+numpy
 openpyxl
+pyecharts
+python-dotenv
+scikit-learn
+tensorflow
+firebase-admin
