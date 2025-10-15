@@ -448,11 +448,7 @@ def render_liquid_chart_foco(score: float, titulo: str) -> str:
             color=[wave_color],
             label_opts=opts.LabelOpts(
                 font_size=50,
-                formatter=JsCode(
-                    """function (param) {
-                           return Math.floor(param.value * 100) + '%';
-                       }"""
-                ),
+                formatter=JsCode("""function (param) { return Math.floor(param.value * 100) + '%'; }"""),
                 position="inside",
             ),
         )
@@ -486,11 +482,7 @@ def render_mini_liquid_chart(score: float) -> str:
             color=[wave_color],
             label_opts=opts.LabelOpts(
                 font_size=11,
-                formatter=JsCode(
-                    """function (param) {
-                           return Math.floor(param.value * 100) + '%';
-                       }"""
-                ),
+                formatter=JsCode("""function (param) { return Math.floor(param.value * 100) + '%'; }"""),
                 position="inside",
             ),
         )
