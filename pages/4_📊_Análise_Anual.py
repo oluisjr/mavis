@@ -24,7 +24,7 @@ st.set_page_config(
     page_icon=favicon
 )
 
-ui_components.hide_streamlit_elements()
+ui_components.hide_main_page_nav_and_footer()
 
 df_total_completo = data_loader.carregar_dados_iniciais()
 ui_components.render_sidebar(df_total_completo, page_name='anual')
@@ -66,3 +66,4 @@ else:
             st.caption(analysis.analisar_tendencia(df_anual_plot, sensor))
         else:
             st.info(f"Não há dados anuais suficientes para o sensor {sensor} neste período.")
+
