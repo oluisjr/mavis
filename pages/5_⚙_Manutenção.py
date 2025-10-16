@@ -44,7 +44,7 @@ except Exception as e:
 
 # --- Configurações da Página ---
 
-ui_components.hide_streamlit_elements()
+ui_components.hide_main_page_nav_and_footer()
 ui_components.render_mavis_header(theme=st.session_state.get('theme', 'light'))
 st.subheader("Registo de Falhas e Manutenção")
 
