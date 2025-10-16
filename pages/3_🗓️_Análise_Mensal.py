@@ -27,7 +27,7 @@ st.set_page_config(
     page_icon=favicon
 )
 
-ui_components.hide_streamlit_elements()
+ui_components.hide_main_page_nav_and_footer()
 
 df_total_completo = data_loader.carregar_dados_iniciais()
 ui_components.render_sidebar(df_total_completo, page_name='mensal')
@@ -130,3 +130,4 @@ else:
             #         components.html(heatmap.render_embed(), height=550, width=1400, scrolling=True)
             #     else:
             #         st.warning("Não há dados semanais suficientes para gerar o mapa de calor para este período.")
+
