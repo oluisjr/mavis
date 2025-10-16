@@ -228,45 +228,31 @@ def render_heatmap_temperatura(df_semanal_filtrado):
     else:
         st.warning("Não há dados suficientes para gerar o mapa de calor.")
         
-def hide_streamlit_elements():
+def hide_main_page_nav_and_footer():
     """
     Usa CSS para esconder o link da página principal (main.py) na barra de navegação
-    e o rodapé "Made with Streamlit".
+    e o rodapé 'Made with Streamlit'. Esta função deve ser usada em TODAS as páginas
+    INTERNAS do dashboard.
     """
-    hide_pages_style = """
+    hide_style = """
         <style>
-        /* Esconde o primeiro item da lista de navegação da sidebar (o link para main.py) */
-        [data-testid="stSidebarNav"] ul > li:first-child {
-            display: none;
-        }
-        /* Esconde o rodapé "Made with Streamlit" */
-        footer {
-            visibility: hidden;
-        }
+        [data-testid="stSidebarNav"] ul > li:first-child { display: none; }
+        footer { visibility: hidden; }
         </style>
     """
-    st.markdown(hide_pages_style, unsafe_allow_html=True)
+    st.markdown(hide_style, unsafe_allow_html=True)
 
-def render_theme_toggle():
-    """Renderiza um st.toggle e o estiliza com efeito de brilho para o modo escuro."""
-    if 'theme' not in st.session_state:
-        st.session_state.theme = 'light'
-    is_dark = st.session_state.theme == 'dark'
-    toggle_style = """
+def hide_sidebar_nav():
+    """
+    Usa CSS para esconder TODA a navegação da barra lateral.
+    Esta função deve ser usada EXCLUSIVAMENTE na página de login (main.py).
+    """
+    hide_nav_style = """
         <style>
-        @keyframes glowing { 0% { box-shadow: 0 0 5px #ffc107, 0 0 10px #ffc107, 0 0 15px #ff9800; } 50% { box-shadow: 0 0 10px #ffc107, 0 0 20px #ff9800, 0 0 30px #ff5722; } 100% { box-shadow: 0 0 5px #ffc107, 0 0 10px #ffc107, 0 0 15px #ff9800; } }
-        div[data-testid="stToggle"] > label > div { width: 70px; height: 38px; background-color: #3d3d3d; border-radius: 20px; transition: background-color 0.3s ease; }
-        div[data-testid="stToggle"] > label > div > div { width: 30px; height: 30px; background: radial-gradient(circle at 30% 30%, #f0f0f0, #a0a0a0); box-shadow: 0 2px 5px rgba(0,0,0,0.4); border: 1px solid #555; transition: transform 0.3s ease, background 0.3s ease, box-shadow 0.3s ease; }
-        div[data-testid="stToggle"] input:checked + div { background-color: #555; }
-        div[data-testid="stToggle"] input:checked + div > div { transform: translateX(32px); background: radial-gradient(circle at center, #ffeb3b, #ffc107); border: none; animation: glowing 1.5s infinite; }
+            [data-testid="stSidebarNav"] {display: none;}
         </style>
     """
-    st.markdown(toggle_style, unsafe_allow_html=True)
-    is_dark_mode_enabled = st.sidebar.toggle("Modo Escuro", value=is_dark, key="theme_toggle")
-    new_theme = 'dark' if is_dark_mode_enabled else 'light'
-    if st.session_state.theme != new_theme:
-        st.session_state.theme = new_theme
-        st.rerun()
+    st.markdown(hide_nav_style, unsafe_allow_html=True)
 
 def render_filter_form(df_total_completo):
     """Renderiza um formulário completo na sidebar para filtrar os dados."""
@@ -490,3 +476,4 @@ def render_mini_liquid_chart(score: float) -> str:
     )
     # Retorna o HTML do gráfico para ser incorporado
     return c.render_embed()
+
