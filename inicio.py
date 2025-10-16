@@ -1,19 +1,22 @@
 import streamlit as st
-from app import config, ui_components, session_manager, data_loader
+from app import config, ui_components, session_manager
 
 # --- Inicializa o Estado da Sessão ---
+# Garante que as chaves de autenticação e filtros sempre existam
 session_manager.initialize_session_state()
-
-# Esconde a navegação entre páginas na tela de login
-ui_components.hide_streamlit_elements()
 
 # --- Configuração da Página de Login ---
 st.set_page_config(
     page_title="MAVIS - Login",
     layout="centered",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="collapsed", # A sidebar começa fechada
     page_icon=config.FAVICON_PATH
 )
+
+# --- CORREÇÃO DE SEGURANÇA APLICADA AQUI ---
+# Esconde TODA a navegação da barra lateral nesta página.
+ui_components.hide_sidebar_nav()
+
 
 # --- Renderização do Cabeçalho ---
 ui_components.render_mavis_header()
@@ -25,9 +28,11 @@ def check_password():
     """Função que renderiza o campo de senha e verifica a autenticação."""
     def password_entered():
         """Função chamada sempre que o texto na caixa de senha muda."""
-        if st.session_state.get("password") in config.VALID_PASSWORDS:
+        # st.secrets é a forma segura do Streamlit Cloud de ler as suas senhas
+        valid_passwords = st.secrets.get("VALID_PASSWORDS", "").split(',')
+        
+        if st.session_state.get("password") in valid_passwords:
             st.session_state.authenticated = True
-            # Limpa a senha da memória por segurança após a verificação
             if "password" in st.session_state:
                 del st.session_state["password"]
         else:
@@ -43,13 +48,9 @@ def check_password():
     )
 
 # --- Lógica de Acesso ---
-# Se o utilizador não estiver autenticado (o valor padrão), mostra o campo de senha.
 if not st.session_state.get('authenticated', False):
     check_password()
-# Se estiver autenticado, mostra uma mensagem de sucesso e redireciona.
 else:
     st.success("Login bem-sucedido! A redirecionar...")
     st.switch_page("pages/0_🏠_Sumário_Executivo.py")
-
-
 
