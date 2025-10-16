@@ -4,6 +4,9 @@ from app import config, ui_components, session_manager, data_loader
 # --- Inicializa o Estado da Sessão ---
 session_manager.initialize_session_state()
 
+# Esconde a navegação entre páginas na tela de login
+ui_components.hide_streamlit_elements()
+
 # --- Configuração da Página de Login ---
 st.set_page_config(
     page_title="MAVIS - Login",
@@ -11,9 +14,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
     page_icon=config.FAVICON_PATH
 )
-
-# Esconde a navegação entre páginas na tela de login
-ui_components.hide_streamlit_elements()
 
 # --- Renderização do Cabeçalho ---
 ui_components.render_mavis_header()
@@ -50,5 +50,6 @@ if not st.session_state.get('authenticated', False):
 else:
     st.success("Login bem-sucedido! A redirecionar...")
     st.switch_page("pages/0_🏠_Sumário_Executivo.py")
+
 
 
