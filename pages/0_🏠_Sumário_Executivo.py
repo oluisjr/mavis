@@ -29,7 +29,7 @@ st.set_page_config(
     page_icon=favicon
 )
 
-ui_components.hide_streamlit_elements()
+ui_components.hide_main_page_nav_and_footer()
 
 # ### MUDANÇA 2: Renderização do cabeçalho movida para o topo ###
 # O cabeçalho agora é desenhado ANTES de qualquer carregamento de dados demorado.
@@ -289,5 +289,6 @@ else:
             
     st.markdown("---")
     st.caption("Developed by *Luis Ignacio* - 2025")
+
 
 
