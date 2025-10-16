@@ -24,7 +24,7 @@ st.set_page_config(
     page_icon=favicon
 )
 
-ui_components.hide_streamlit_elements()
+ui_components.hide_main_page_nav_and_footer()
 
 df_total_completo = data_loader.carregar_dados_iniciais()
 ui_components.render_sidebar(df_total_completo, page_name='semanal')
@@ -182,3 +182,4 @@ else:
     #                     st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
     #             else:
     #                     st.info("Tudo normal por aqui...")
+
