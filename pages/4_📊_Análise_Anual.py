@@ -56,7 +56,9 @@ else:
     for sensor in config.CORES.keys():
         st.markdown("---")
         if sensor == "TEMPERATURA":
+            st.subheader(config.NOMES_SENSORES.get(sensor, sensor))
             st.markdown("### ⚠️ :gray-background[Sensor inoperante, impossível analisar!] ⚠️")
+        
         else:
             # Lógica padrão para todos os outros sensores
             st.subheader(f"Análise Anual para {config.NOMES_SENSORES.get(sensor, sensor)}")
@@ -70,6 +72,7 @@ else:
             st.caption(analysis.analisar_tendencia(df_anual_plot, sensor))
         else:
             st.info(f"Não há dados anuais suficientes para o sensor {sensor} neste período.")
+
 
 
 
