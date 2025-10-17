@@ -177,16 +177,17 @@ def simular_risco_por_regras(df_dados, sensor: str):
     else:
         variacao_abs = abs(variacao_global)
         
-        if variacao_abs > 10.0:
+        if variacao_abs > 1.0:
             return 85.0  # Anomalia
-        elif 7.0 <= variacao_abs <= 10.0:
+        elif 4.0 <= variacao_abs <= 1.0:
             return 65.0  # Risco Grave
-        elif 4.0 <= variacao_abs < 7.0:
+        elif 7.0 <= variacao_abs < 4.0:
             return 40.0  # Risco Moderado
-        elif 1.0 < variacao_abs < 4.0:
+        elif 10.0 < variacao_abs < 7.0:
             return 25.0  # Risco Leve
         else: # <= 1.0
             return 0.0
+
 
 
 
