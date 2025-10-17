@@ -1,4 +1,5 @@
 from . import config
+import pandas as pd
 
 def analisar_tendencia(dados, eixo_y, sensor=None):
     """Analisa a tendência global e a variação instantânea dos dados."""
@@ -139,41 +140,44 @@ def calcular_impacto_financeiro(riscos: dict):
 #     risco_final = min(risco_calculado, 100.0)
     
 #     return round(risco_final, 1)
-def simular_risco_por_regras(df_dados, sensor: str):
+def _calculate_tendency(dados: pd.DataFrame, sensor: str) -> tuple[float, float]:
     """
-    Calcula o Potencial de Falha com base em limiares fixos da variação da tendência,
-    garantindo consistência com o Status de Anomalia.
+    Função central e privada para o cálculo numérico da tendência.
+    Retorna apenas os valores brutos: (variacao_global, derivada_media).
     """
-    dados = df_dados[[sensor]].dropna()
-    if len(dados) < 4: return 5.0
+    if len(dados) < 4:
+        return 0.0, 0.0
 
     inicio = dados[sensor].iloc[:3].mean()
     fim = dados[sensor].iloc[-3:].mean()
     
-    # Lógica específica e linear para o sensor de TEMPERATURA
+    variacao_global = ((fim - inicio) / inicio) * 100 if inicio != 0 else 0.0
+    derivada_media = (dados[sensor].diff() / dados[sensor].shift(1) * 100).mean()
+    
+    return variacao_global, derivada_media
+
+def simular_risco_por_regras(df_dados, sensor: str):
+    """Usa o cálculo central de tendência para mapear a um Potencial de Falha."""
+    dados = df_dados[[sensor]].dropna()
+    if len(dados) < 4: return 5.0
+
+    variacao_global, derivada_media = _calculate_tendency(dados, sensor)
+    
     if sensor == 'TEMPERATURA':
+        inicio = dados[sensor].iloc[:3].mean()
+        fim = dados[sensor].iloc[-3:].mean()
         variacao_absoluta = abs(fim - inicio)
-        # Lógica de mapeamento para variação absoluta (em graus)
         if variacao_absoluta > 5: return 85.0
         elif variacao_absoluta >= 4: return 65.0
         elif variacao_absoluta >= 3: return 40.0
         elif variacao_absoluta > 1: return 25.0
         else: return 10.0
-    
-    # ### INÍCIO DA LÓGICA DE RISCO UNIFICADA E CORRIGIDA ###
     else:
-        # A base do risco é a variação global, exatamente como na análise de tendência.
-        variacao_global_percentual = abs(((fim - inicio) / inicio) * 100) if inicio != 0 else 0
+        variacao_abs = abs(variacao_global)
         
-        # Mapeamento direto da variação para uma pontuação de risco fixa.
-        # Os valores de risco são representativos de cada categoria.
-        if variacao_global_percentual > 10.0:
-            return 85.0  # Anomalia
-        elif variacao_global_percentual >= 8.0:
-            return 65.0  # Risco Grave
-        elif variacao_global_percentual >= 5.0:
-            return 40.0  # Risco Moderado
-        elif variacao_global_percentual > 1.0:
-            return 25.0  # Risco Leve
-        else:
-            return 10.0  # Normal
+        if variacao_abs > 10.0: return 85.0
+        elif variacao_abs >= 8.0: return 65.0
+        elif variacao_abs >= 5.0: return 40.0
+        elif variacao_abs > 1.0: return 25.0
+        else: return 10.0
+
