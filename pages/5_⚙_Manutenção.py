@@ -86,7 +86,7 @@ try:
         if datas:
             # Pega a data mais recente
             latest_date = max(pd.to_datetime(datas)).strftime('%d/%m/%Y')
-            historico.append({"Sensor": sensor, "Última Falha Registada": latest_date})
+            historico.append({"Sensor": sensor, "Última manutenção Registada": latest_date})
     
     if historico:
         st.dataframe(pd.DataFrame(historico), use_container_width=True)
