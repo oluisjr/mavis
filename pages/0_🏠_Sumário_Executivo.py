@@ -74,9 +74,9 @@ receita_str = filtros.get('receita_fmt', '123') # Padrão para '123' se algo fal
 (df_total, df_diario, df_semanal, df_mensal, df_anual), messages = data_loader.carregar_dados_por_receita(receita_str)
 
 # Calcula e armazena os riscos para uso no painel
-riscos_semana = {}
-if not df_semanal.empty:
-    riscos_semana = {s: analysis.simular_risco_por_regras(df_semanal, s) for s in config.NOMES_SENSORES.keys()}
+riscos_dia = {}
+if not df_diario.empty:
+    riscos_dia = {s: analysis.simular_risco_por_regras(df_diario, s) for s in config.NOMES_SENSORES.keys()}
 
 riscos_mes = {}
 if not df_mensal.empty:
@@ -85,7 +85,7 @@ if not df_mensal.empty:
 data_hora_brasilia = datetime.now(ZoneInfo('America/Sao_Paulo'))
 st.caption(f"Análise baseada nos dados filtrados até {data_hora_brasilia.strftime('%d/%m/%Y')}.")
 
-riscos_para_analise = riscos_semana if riscos_semana else riscos_mes
+riscos_para_analise = riscos_dia if riscos_dia else riscos_mes
 
 def get_formatted_sensor_name(sensor_key: str) -> str:
     full_name = config.NOMES_SENSORES.get(sensor_key, str(sensor_key))
@@ -289,6 +289,7 @@ else:
             
     st.markdown("---")
     st.caption("Developed by *Luis Ignacio* - 2025")
+
 
 
 
