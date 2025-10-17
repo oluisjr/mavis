@@ -61,38 +61,11 @@ else:
             col_nome, col_liquid = st.columns([5, 0.8])
             with col_nome:
                 st.write(f"## {config.NOMES_SENSORES[sensor]}")
-            with col_liquid:
-                riscos_semana = {}
-                if not df_semanal.empty:
-                    riscos_semana = {s: analysis.simular_risco_por_regras(df_semanal, s) for s in config.NOMES_SENSORES.keys()}
-
-                riscos_mes = {}
-                if not df_mensal.empty:
-                    riscos_mes = {s: analysis.simular_risco_por_regras(df_mensal, s) for s in config.NOMES_SENSORES.keys()}
-                    
-                riscos_para_analise = riscos_semana if riscos_semana else riscos_mes
-
-                risco = riscos_semana.get(sensor, 100)
-                score = analysis.calcular_health_score(risco)
-                liquid_html_raw =ui_components.render_mini_liquid_chart(score)
-                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 60px; width: 100%;">{liquid_html_raw}</div>"""
-                components.html(centered_liquid_html, height=80)
-            st.markdown(analysis.detectar_anomalia(df_final, sensor))
-            st.line_chart(df_final.set_index('SEMANA')[sensor])
                 
             with st.expander("Ver análise detalhada da IA"):
                 st.caption(analysis.analisar_tendencia(df_final, sensor, sensor=sensor))
                 st.markdown("---")
 
-                if riscos_semana and sensor in riscos_semana:
-                    st.write("**Potencial de falha iminente (%)**")
-                    risco_valor = riscos_semana[sensor]
-                    if risco_valor > 75: st.error(f"**Risco Elevado:** {risco_valor:.1f}%")
-                    elif risco_valor > 50: st.warning(f"**Atenção:** {risco_valor:.1f}%")
-                    elif risco_valor > 20: st.info(f"**Risco Moderado:** {risco_valor:.1f}%")
-                    else: st.success(f"**Risco Baixo:** {risco_valor:.1f}%")
-                else:
-                    st.info("Simulação de risco indisponível.")
                 if sensor in riscos_semana:
                     status_sensor = analysis.detectar_anomalia(df_final, sensor)
                     if "Normal" not in status_sensor:
@@ -109,38 +82,11 @@ else:
             col_nome, col_liquid = st.columns([5, 0.8])
             with col_nome:
                 st.write(f"## {config.NOMES_SENSORES[sensor]}")
-            with col_liquid:
-                riscos_semana = {}
-                if not df_semanal.empty:
-                    riscos_semana = {s: analysis.simular_risco_por_regras(df_semanal, s) for s in config.NOMES_SENSORES.keys()}
-
-                riscos_mes = {}
-                if not df_mensal.empty:
-                    riscos_mes = {s: analysis.simular_risco_por_regras(df_mensal, s) for s in config.NOMES_SENSORES.keys()}
-                    
-                riscos_para_analise = riscos_semana if riscos_semana else riscos_mes
-
-                risco = riscos_para_analise.get(sensor, 0)
-                score = analysis.calcular_health_score(risco)
-                liquid_html_raw =ui_components.render_mini_liquid_chart(score)
-                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 60px; width: 100%;">{liquid_html_raw}</div>"""
-                components.html(centered_liquid_html, height=80)
-            st.markdown(analysis.detectar_anomalia(df_final, sensor))
-            st.line_chart(df_final.set_index('SEMANA')[sensor])
                 
             with st.expander("Ver análise detalhada da IA"):
                 st.caption(analysis.analisar_tendencia(df_final, sensor, sensor=sensor))
                 st.markdown("---")
 
-                if riscos_semana and sensor in riscos_semana:
-                    st.write("**Potencial de falha iminente (%)**")
-                    risco_valor = riscos_semana[sensor]
-                    if risco_valor > 75: st.error(f"**Risco Elevado:** {risco_valor:.1f}%")
-                    elif risco_valor > 50: st.warning(f"**Atenção:** {risco_valor:.1f}%")
-                    elif risco_valor > 20: st.info(f"**Risco Moderado:** {risco_valor:.1f}%")
-                    else: st.success(f"**Risco Baixo:** {risco_valor:.1f}%")
-                else:
-                    st.info("Simulação de risco indisponível.")
                 if sensor in riscos_semana:
                     status_sensor = analysis.detectar_anomalia(df_final, sensor)
                     if "Normal" not in status_sensor:
@@ -182,4 +128,5 @@ else:
     #                     st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
     #             else:
     #                     st.info("Tudo normal por aqui...")
+
 
