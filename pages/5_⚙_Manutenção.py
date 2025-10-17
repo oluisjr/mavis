@@ -46,7 +46,7 @@ except Exception as e:
 
 ui_components.hide_main_page_nav_and_footer()
 ui_components.render_mavis_header(theme=st.session_state.get('theme', 'light'))
-st.subheader("Registo de Falhas e Manutenção")
+st.subheader("Registo de Manutenção")
 
 if not db:
     st.stop()
@@ -61,7 +61,7 @@ with col2:
     data_falha = st.date_input("Data da Falha/Manutenção", datetime.now())
 with col3:
     st.write("") # Espaçador
-    if st.button("Registar Falha", use_container_width=True, type="primary"):
+    if st.button("Registar Manutenção", use_container_width=True, type="primary"):
         try:
             doc_ref = db.collection('falhas').document(sensor_selecionado)
             # Usa 'array_union' para adicionar a data à lista sem duplicar
@@ -75,7 +75,7 @@ with col3:
 
 # --- Tabela de Histórico de Falhas ---
 st.markdown("---")
-st.subheader("Histórico de Falhas Registadas")
+st.subheader("Histórico de Manutenções Registadas")
 
 try:
     falhas_ref = db.collection('falhas').stream()
@@ -91,6 +91,6 @@ try:
     if historico:
         st.dataframe(pd.DataFrame(historico), use_container_width=True)
     else:
-        st.info("Nenhuma falha registada até ao momento.")
+        st.info("Nenhuma manutenção registada até ao momento.")
 except Exception as e:
     st.error(f"Não foi possível carregar o histórico de falhas: {e}")
