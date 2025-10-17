@@ -186,7 +186,8 @@ def simular_risco_por_regras(df_dados, sensor: str):
         elif 10.0 < variacao_abs < 8.0:
             return 25.0  # Risco Leve
         else: # <= 1.0
-            return 10.0
+            return 0.0
+
 
 
 
