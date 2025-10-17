@@ -156,9 +156,9 @@ def _calculate_tendency(dados: pd.DataFrame, sensor: str) -> tuple[float, float]
     
     return variacao_global, derivada_media
 
-def simular_risco_por_regras(df_dados, sensor: str):
+def simular_risco_por_regras(df_dados, sensor: str, receita_str: str = "0"):
     """
-    Calcula o Potencial de Falha com uma fórmula proporcional à variação da tendência.
+    Calcula o Potencial de Falha com uma fórmula proporcional e com pesos específicos por receita.
     """
     dados = df_dados[[sensor]].dropna()
     if len(dados) < 4: return 5.0
@@ -169,21 +169,22 @@ def simular_risco_por_regras(df_dados, sensor: str):
     risco_base = 5.0
     
     if sensor == 'TEMPERATURA':
-        # Mantém a lógica absoluta para a temperatura
         inicio = dados[sensor].iloc[:3].mean()
         fim = dados[sensor].iloc[-3:].mean()
         variacao_absoluta = abs(fim - inicio)
-        risco_calculado = risco_base + (variacao_absoluta * 5.0) # Peso ajustado
+        risco_calculado = risco_base + (variacao_absoluta * 5.0)
     else:
-        # --- NOVA LÓGICA PROPORCIONAL ---
-        # A tendência é o fator principal do risco.
         
-        # A Corrente é mais sensível: uma variação de 10% já aproxima o risco de 100.
+        # Define um peso de tendência base
+        peso_tendencia = 7.0
+        
+        # A Corrente é mais sensível
         if sensor == 'CORRENTE':
             peso_tendencia = 9.0
-        # Outros sensores são importantes, mas menos críticos.
-        else:
-            peso_tendencia = 7.0
+        
+        # Se a receita for a 580, a corrente tem um peso ainda maior.
+        if sensor == 'CORRENTE' and receita_str == '580':
+            peso_tendencia = 10.0 # Peso máximo para este caso específico
             
         risco_calculado = risco_base + (variacao_abs * peso_tendencia)
 
