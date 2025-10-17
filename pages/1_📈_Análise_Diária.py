@@ -127,7 +127,7 @@ else:
                 if not df_mensal.empty:
                     riscos_mes = {s: analysis.simular_risco_por_regras(df_mensal, s) for s in config.NOMES_SENSORES.keys()}
                     
-                riscos_para_analise = riscos_semana if riscos_semana else riscos_mes
+                riscos_para_analise = riscos_dia if riscos_dia else riscos_mes
 
                 risco = riscos_dia.get(sensor, 100)
                 score = analysis.calcular_health_score(risco)
@@ -192,6 +192,7 @@ else:
         #             st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
         #         else:
         #             st.info("Tudo normal por aqui...")
+
 
 
 
