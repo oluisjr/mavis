@@ -119,9 +119,9 @@ else:
             with col_nome:
                 st.write(f"## {config.NOMES_SENSORES[sensor]}")
             with col_liquid:
-                riscos_semana = {}
-                if not df_semanal.empty:
-                    riscos_semana = {s: analysis.simular_risco_por_regras(df_semanal, s) for s in config.NOMES_SENSORES.keys()}
+                riscos_dia = {}
+                if not df_diario.empty:
+                    riscos_dia = {s: analysis.simular_risco_por_regras(df_diario, s) for s in config.NOMES_SENSORES.keys()}
 
                 riscos_mes = {}
                 if not df_mensal.empty:
@@ -192,6 +192,7 @@ else:
         #             st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
         #         else:
         #             st.info("Tudo normal por aqui...")
+
 
 
 
