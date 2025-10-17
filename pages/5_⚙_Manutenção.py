@@ -52,7 +52,7 @@ if not db:
     st.stop()
 
 # --- Interface de Registo ---
-st.markdown("Selecione o sensor e a data em que ocorreu uma falha ou manutenção significativa. O Gêmeo Digital irá reiniciar a sua análise a partir desta data para garantir a precisão das previsões futuras.")
+st.markdown("Selecione o sensor e a data em que ocorreu a manutenção.")
 
 col1, col2, col3 = st.columns(3)
 with col1:
