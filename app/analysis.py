@@ -157,11 +157,13 @@ def _calculate_tendency(dados: pd.DataFrame, sensor: str) -> tuple[float, float]
     return variacao_global, derivada_media
 
 def simular_risco_por_regras(df_dados, sensor: str):
-    """Usa o cálculo central de tendência para mapear a um Potencial de Falha."""
+    """
+    Calcula o Potencial de Falha com base em bandas de variação de tendência precisas.
+    """
     dados = df_dados[[sensor]].dropna()
     if len(dados) < 4: return 5.0
 
-    variacao_global, derivada_media = _calculate_tendency(dados, sensor)
+    variacao_global, _ = _calculate_tendency(dados, sensor)
     
     if sensor == 'TEMPERATURA':
         inicio = dados[sensor].iloc[:3].mean()
@@ -175,11 +177,17 @@ def simular_risco_por_regras(df_dados, sensor: str):
     else:
         variacao_abs = abs(variacao_global)
         
-        if variacao_abs >= 1.0: return 85.0
-        elif variacao_abs >= 8.0: return 65.0
-        elif variacao_abs >= 5.0: return 40.0
-        elif variacao_abs > 10.0: return 25.0
-        else: return 10.0
+        if variacao_abs > 10.0:
+            return 85.0  # Anomalia
+        elif 8.0 <= variacao_abs <= 10.0:
+            return 65.0  # Risco Grave
+        elif 5.0 <= variacao_abs < 8.0:
+            return 40.0  # Risco Moderado
+        elif 1.0 < variacao_abs < 5.0:
+            return 25.0  # Risco Leve
+        else: # <= 1.0
+            return 10.0
+
 
 
 
