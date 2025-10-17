@@ -16,7 +16,7 @@ def initialize_session_state():
             'receita_fmt': '123',
             'entry_code': 'Todos',
             'exit_code': 'Todos',
-            'anos': '2025', 
+            'anos': [], 
             'meses': [], 
             'semanas': [], 
             'dias': []
