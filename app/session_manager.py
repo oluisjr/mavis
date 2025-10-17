@@ -13,7 +13,7 @@ def initialize_session_state():
     # Inicializa o dicionário de filtros
     if 'filtros_aplicados' not in st.session_state:
         st.session_state.filtros_aplicados = {
-            'receita_fmt': '580',
+            'receita_fmt': '123',
             'entry_code': 'Todos',
             'exit_code': 'Todos',
             'anos': [], 
