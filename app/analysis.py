@@ -158,35 +158,38 @@ def _calculate_tendency(dados: pd.DataFrame, sensor: str) -> tuple[float, float]
 
 def simular_risco_por_regras(df_dados, sensor: str):
     """
-    Calcula o Potencial de Falha com base em bandas de variação de tendência precisas.
+    Calcula o Potencial de Falha com uma fórmula proporcional à variação da tendência.
     """
     dados = df_dados[[sensor]].dropna()
     if len(dados) < 4: return 5.0
 
     variacao_global, _ = _calculate_tendency(dados, sensor)
+    variacao_abs = abs(variacao_global)
+    
+    risco_base = 5.0
     
     if sensor == 'TEMPERATURA':
+        # Mantém a lógica absoluta para a temperatura
         inicio = dados[sensor].iloc[:3].mean()
         fim = dados[sensor].iloc[-3:].mean()
         variacao_absoluta = abs(fim - inicio)
-        if variacao_absoluta > 5: return 85.0
-        elif variacao_absoluta >= 4: return 65.0
-        elif variacao_absoluta >= 3: return 40.0
-        elif variacao_absoluta > 1: return 25.0
-        else: return 10.0
+        risco_calculado = risco_base + (variacao_absoluta * 5.0) # Peso ajustado
     else:
-        variacao_abs = abs(variacao_global)
+        # --- NOVA LÓGICA PROPORCIONAL ---
+        # A tendência é o fator principal do risco.
         
-        if variacao_abs > 1.0:
-            return 85.0  # Anomalia
-        elif 4.0 <= variacao_abs <= 1.0:
-            return 65.0  # Risco Grave
-        elif 7.0 <= variacao_abs < 4.0:
-            return 40.0  # Risco Moderado
-        elif 10.0 < variacao_abs < 7.0:
-            return 25.0  # Risco Leve
-        else: # <= 1.0
-            return 0.0
+        # A Corrente é mais sensível: uma variação de 10% já aproxima o risco de 100.
+        if sensor == 'CORRENTE':
+            peso_tendencia = 9.0
+        # Outros sensores são importantes, mas menos críticos.
+        else:
+            peso_tendencia = 7.0
+            
+        risco_calculado = risco_base + (variacao_abs * peso_tendencia)
+
+    risco_final = min(risco_calculado, 100.0)
+    return round(risco_final, 1)
+
 
 
 
