@@ -61,6 +61,7 @@ else:
             col_nome, col_liquid = st.columns([5, 0.8])
             with col_nome:
                 st.write(f"## {config.NOMES_SENSORES[sensor]}")
+                st.line_chart(df_final.set_index('SEMANA')[sensor])
                 
             with st.expander("Ver análise detalhada da IA"):
                 st.caption(analysis.analisar_tendencia(df_final, sensor, sensor=sensor))
@@ -82,6 +83,7 @@ else:
             col_nome, col_liquid = st.columns([5, 0.8])
             with col_nome:
                 st.write(f"## {config.NOMES_SENSORES[sensor]}")
+                st.line_chart(df_final.set_index('SEMANA')[sensor])
                 
             with st.expander("Ver análise detalhada da IA"):
                 st.caption(analysis.analisar_tendencia(df_final, sensor, sensor=sensor))
@@ -128,5 +130,6 @@ else:
     #                     st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
     #             else:
     #                     st.info("Tudo normal por aqui...")
+
 
 
