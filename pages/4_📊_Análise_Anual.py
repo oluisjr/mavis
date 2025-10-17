@@ -61,7 +61,7 @@ else:
         
         else:
             # Lógica padrão para todos os outros sensores
-            st.subheader(f"Análise Anual para {config.NOMES_SENSORES.get(sensor, sensor)}")
+            st.subheader(f"{config.NOMES_SENSORES.get(sensor, sensor)}")
             df_anual_plot = df_anual_filtrado.groupby(df_anual_filtrado['ANO'].dt.year)[sensor].mean().reset_index()
 
         # Agrupa os dados por ano e calcula a média para o sensor atual
@@ -72,6 +72,7 @@ else:
             st.caption(analysis.analisar_tendencia(df_anual_plot, sensor))
         else:
             st.info(f"Não há dados anuais suficientes para o sensor {sensor} neste período.")
+
 
 
 
