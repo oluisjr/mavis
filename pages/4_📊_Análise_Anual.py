@@ -56,48 +56,7 @@ else:
     for sensor in config.CORES.keys():
         st.markdown("---")
         if sensor == "TEMPERATURA":
-            st.subheader(config.NOMES_SENSORES.get(sensor, sensor))
-            
-            # HTML e CSS para o cartão de aviso e o popup
-            popup_html = """
-                <style>
-                #card-temperatura {
-                    border: 1.5px dashed #ffa500; background: #f8fafc; border-radius: 10px;
-                    padding: 25px 10px; text-align: center; font-size: 14px;
-                    font-weight: 500; color: #64748b; cursor: pointer;
-                    transition: background 0.2s, box-shadow 0.2s;
-                }
-                #card-temperatura:hover { background: #f1f5f9; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-                #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.15); backdrop-filter: blur(2px); z-index: 9998; }
-                #popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #ffffff; border-radius: 12px; padding: 22px 26px; width: 320px; box-shadow: 0 6px 24px rgba(0,0,0,0.15); color: #2c3e50; z-index: 9999; }
-                #popup h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #333; }
-                #popup p { font-size: 15px; line-height: 1.4; margin: 0 0 16px 0; color: #555; }
-                #popup button { background: #2563eb; border: none; color: #fff; font-size: 14px; padding: 8px 20px; border-radius: 8px; cursor: pointer; }
-                </style>
-
-                <div id="card-temperatura" onclick="abrirPopup()">
-                    Temperatura<br>temporariamente inoperante
-                </div>
-                <div id="overlay" onclick="fecharPopup()"></div>
-                <div id="popup">
-                    <h3>Sensor Indisponível</h3>
-                    <p>Pirômetro danificado.<br>Aguardando nova instalação.</p>
-                    <button onclick="fecharPopup()">OK</button>
-                </div>
-
-                <script>
-                function abrirPopup(){
-                    document.getElementById('overlay').style.display = 'block';
-                    document.getElementById('popup').style.display = 'block';
-                }
-                function fecharPopup(){
-                    document.getElementById('overlay').style.display = 'none';
-                    document.getElementById('popup').style.display = 'none';
-                }
-                </script>
-            """
-            components.html(popup_html, height=120)
-
+            st.markdown("### ⚠️ :gray-background[Sensor inoperante, impossível analisar!] ⚠️")
         else:
             # Lógica padrão para todos os outros sensores
             st.subheader(f"Análise Anual para {config.NOMES_SENSORES.get(sensor, sensor)}")
@@ -111,5 +70,6 @@ else:
             st.caption(analysis.analisar_tendencia(df_anual_plot, sensor))
         else:
             st.info(f"Não há dados anuais suficientes para o sensor {sensor} neste período.")
+
 
 
