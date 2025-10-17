@@ -96,46 +96,84 @@ def calcular_impacto_financeiro(riscos: dict):
     
     return impacto_total, impacto_individual
 
+# def simular_risco_por_regras(df_dados, sensor: str):
+#     """Simula uma pontuação de risco (0-100) com uma lógica de mapeamento direto e realista."""
+#     dados = df_dados[[sensor]].dropna().tail(20)
+#     if len(dados) < 4: return 0
+
+#     inicio = dados[sensor].iloc[:3].mean()
+#     fim = dados[sensor].iloc[-3:].mean()
+#     risco_base = 0
+
+#     # Lógica específica e linear para o sensor de TEMPERATURA
+#     if sensor == 'TEMPERATURA':
+#         variacao_absoluta = abs(fim - inicio)
+#         volatilidade_absoluta = dados[sensor].diff().abs().mean()
+#         risco_calculado = risco_base + (variacao_absoluta * 4.0) + (volatilidade_absoluta * 8.0)
+    
+#     # ### INÍCIO DA LÓGICA DE RISCO UNIFICADA E CORRIGIDA ###
+#     else:
+#         # A base do risco é a variação global, exatamente como na análise de tendência.
+#         variacao_global_percentual = abs(((fim - inicio) / inicio) * 100) if inicio != 0 else 0
+        
+#         # Mapeamento direto da variação para o risco, alinhado com os status de anomalia.
+#         if variacao_global_percentual > 5.0:  # Nível Anomalia
+#             # Mapeia linearmente a variação de 10-20% para um risco de 75-100%
+#             fator_agressividade = 5.2 if sensor == 'CORRENTE' else 1.0
+#             risco_calculado = 75 + (variacao_global_percentual - 10) * 2.5 * fator_agressividade
+#         elif variacao_global_percentual > 5.0:  # Nível Atenção Significativa
+#             # Mapeia linearmente a variação de 5-10% para um risco de 50-75%
+#             risco_calculado = 50 + (variacao_global_percentual - 5) * 15.0
+#         elif variacao_global_percentual > 1.0:  # Nível Leve Tendência
+#             # Mapeia linearmente a variação de 1-5% para um risco de 20-50%
+#             risco_calculado = 20 + (variacao_global_percentual - 1) * 7.5
+#         else:  # Nível Estável
+#             risco_calculado = risco_base + variacao_global_percentual * 5.0
+
+#         # Adiciona uma pequena penalidade pela volatilidade (ruído)
+#         volatilidade_media_percentual = abs((dados[sensor].diff() / dados[sensor].shift(1)) * 100).mean()
+#         penalidade_volatilidade = volatilidade_media_percentual * 0.5
+#         risco_calculado += penalidade_volatilidade
+#     # ### FIM DA LÓGICA DE RISCO UNIFICADA ###
+
+#     risco_final = min(risco_calculado, 100.0)
+    
+#     return round(risco_final, 1)
 def simular_risco_por_regras(df_dados, sensor: str):
-    """Simula uma pontuação de risco (0-100) com uma lógica de mapeamento direto e realista."""
-    dados = df_dados[[sensor]].dropna().tail(20)
-    if len(dados) < 4: return 0
+    """
+    Calcula o Potencial de Falha com base em limiares fixos da variação da tendência,
+    garantindo consistência com o Status de Anomalia.
+    """
+    dados = df_dados[[sensor]].dropna()
+    if len(dados) < 4: return 5.0
 
     inicio = dados[sensor].iloc[:3].mean()
     fim = dados[sensor].iloc[-3:].mean()
-    risco_base = 0
-
+    
     # Lógica específica e linear para o sensor de TEMPERATURA
     if sensor == 'TEMPERATURA':
         variacao_absoluta = abs(fim - inicio)
-        volatilidade_absoluta = dados[sensor].diff().abs().mean()
-        risco_calculado = risco_base + (variacao_absoluta * 4.0) + (volatilidade_absoluta * 8.0)
+        # Lógica de mapeamento para variação absoluta (em graus)
+        if variacao_absoluta > 5: return 85.0
+        elif variacao_absoluta >= 4: return 65.0
+        elif variacao_absoluta >= 3: return 40.0
+        elif variacao_absoluta > 1: return 25.0
+        else: return 10.0
     
     # ### INÍCIO DA LÓGICA DE RISCO UNIFICADA E CORRIGIDA ###
     else:
         # A base do risco é a variação global, exatamente como na análise de tendência.
         variacao_global_percentual = abs(((fim - inicio) / inicio) * 100) if inicio != 0 else 0
         
-        # Mapeamento direto da variação para o risco, alinhado com os status de anomalia.
-        if variacao_global_percentual > 5.0:  # Nível Anomalia
-            # Mapeia linearmente a variação de 10-20% para um risco de 75-100%
-            fator_agressividade = 5.2 if sensor == 'CORRENTE' else 1.0
-            risco_calculado = 75 + (variacao_global_percentual - 10) * 2.5 * fator_agressividade
-        elif variacao_global_percentual > 5.0:  # Nível Atenção Significativa
-            # Mapeia linearmente a variação de 5-10% para um risco de 50-75%
-            risco_calculado = 50 + (variacao_global_percentual - 5) * 15.0
-        elif variacao_global_percentual > 1.0:  # Nível Leve Tendência
-            # Mapeia linearmente a variação de 1-5% para um risco de 20-50%
-            risco_calculado = 20 + (variacao_global_percentual - 1) * 7.5
-        else:  # Nível Estável
-            risco_calculado = risco_base + variacao_global_percentual * 5.0
-
-        # Adiciona uma pequena penalidade pela volatilidade (ruído)
-        volatilidade_media_percentual = abs((dados[sensor].diff() / dados[sensor].shift(1)) * 100).mean()
-        penalidade_volatilidade = volatilidade_media_percentual * 0.5
-        risco_calculado += penalidade_volatilidade
-    # ### FIM DA LÓGICA DE RISCO UNIFICADA ###
-
-    risco_final = min(risco_calculado, 100.0)
-    
-    return round(risco_final, 1)
+        # Mapeamento direto da variação para uma pontuação de risco fixa.
+        # Os valores de risco são representativos de cada categoria.
+        if variacao_global_percentual > 10.0:
+            return 85.0  # Anomalia
+        elif variacao_global_percentual >= 8.0:
+            return 65.0  # Risco Grave
+        elif variacao_global_percentual >= 5.0:
+            return 40.0  # Risco Moderado
+        elif variacao_global_percentual > 1.0:
+            return 25.0  # Risco Leve
+        else:
+            return 10.0  # Normal
