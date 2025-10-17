@@ -321,7 +321,7 @@ def render_sidebar(df_total_completo, page_name: str):
         
         default_receita_fmt = st.session_state.filtros_aplicados.get('receita_fmt', '123')
         default_receita_full = next((r for r in receitas_disponiveis if r.startswith(default_receita_fmt)), receitas_disponiveis[0])
-        receita_selecionada_fmt = st.selectbox("Receita:", receitas_disponiveis, index=receitas_disponiveis.index(default_receita_full))
+        receita_selecionada_fmt = st.selectbox("Receita:", ["123"], index=0, disabled=True)
 
         receita_num = receita_selecionada_fmt.split(' ')[0]
         df_filtrado_receita = df_total_completo[df_total_completo['PROGRAM_Nº'] == receita_num]
@@ -476,4 +476,5 @@ def render_mini_liquid_chart(score: float) -> str:
     )
     # Retorna o HTML do gráfico para ser incorporado
     return c.render_embed()
+
 
