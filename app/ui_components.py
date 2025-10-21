@@ -264,7 +264,7 @@ def render_filter_form(df_total_completo):
         # Lógica para encontrar o valor padrão '123' ou o valor já salvo
         default_receita_fmt = st.session_state.filtros_aplicados['receita_fmt']
         if default_receita_fmt not in receitas_disponiveis:
-             default_receita_fmt = next((r for r in receitas_disponiveis if r.startswith("123 ")), receitas_disponiveis[0])
+             default_receita_fmt = next((r for r in receitas_disponiveis if r.startswith("1 ")), receitas_disponiveis[0])
 
         receita_selecionada_fmt = st.selectbox(
             "Selecione a Receita:",
@@ -319,9 +319,9 @@ def render_sidebar(df_total_completo, page_name: str):
         receitas_disponiveis = data_loader.obter_top_4_receitas_formatadas()
         if 'Todas' in receitas_disponiveis: receitas_disponiveis.remove('Todas')
         
-        default_receita_fmt = st.session_state.filtros_aplicados.get('receita_fmt', '123')
+        default_receita_fmt = st.session_state.filtros_aplicados.get('receita_fmt', '1')
         default_receita_full = next((r for r in receitas_disponiveis if r.startswith(default_receita_fmt)), receitas_disponiveis[0])
-        receita_selecionada_fmt = st.selectbox("Receita:", ["123"], index=0, disabled=True)
+        receita_selecionada_fmt = st.selectbox("Receita:", ["1"], index=0, disabled=True)
 
         receita_num = receita_selecionada_fmt.split(' ')[0]
         df_filtrado_receita = df_total_completo[df_total_completo['PROGRAM_Nº'] == receita_num]
@@ -476,5 +476,6 @@ def render_mini_liquid_chart(score: float) -> str:
     )
     # Retorna o HTML do gráfico para ser incorporado
     return c.render_embed()
+
 
 
