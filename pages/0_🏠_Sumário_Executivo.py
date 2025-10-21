@@ -48,7 +48,7 @@ df_total_completo = data_loader.carregar_dados_iniciais()
 ui_components.render_sidebar(df_total_completo, page_name='anual')
 
 filtros = st.session_state.get('filtros_aplicados', {})
-receita_str = filtros.get('receita_fmt', '123')
+receita_str = filtros.get('receita_fmt', '1')
 
 # Se estivermos em modo de erro, exiba a mensagem e pare a execução.
 if st.session_state.error_occurred:
@@ -69,7 +69,7 @@ if st.session_state.error_occurred:
 
 # --- LÓGICA DE CARREGAMENTO DE DADOS ---
 filtros = st.session_state.get('filtros_aplicados', {})
-receita_str = filtros.get('receita_fmt', '123') # Padrão para '123' se algo falhar
+receita_str = filtros.get('receita_fmt', '1') # Padrão para '123' se algo falhar
 
 (df_total, df_diario, df_semanal, df_mensal, df_anual), messages = data_loader.carregar_dados_por_receita(receita_str)
 
@@ -289,6 +289,7 @@ else:
             
     st.markdown("---")
     st.caption("Developed by *Luis Ignacio* - 2025")
+
 
 
 
