@@ -40,7 +40,7 @@ st.subheader("Análise Mensal dos Sensores")
 
 # --- Leitura dos Dados e Aplicação dos Filtros ---
 filtros = st.session_state.get('filtros_aplicados', {})
-receita_str = filtros.get('receita_fmt', '123')
+receita_str = filtros.get('receita_fmt', '1')
 (df_total, df_diario, df_semanal, df_mensal, df_anual), messages = data_loader.carregar_dados_por_receita(receita_str)
 riscos_mes = st.session_state.get('riscos_mes', {})
 
@@ -130,4 +130,5 @@ else:
             #         components.html(heatmap.render_embed(), height=550, width=1400, scrolling=True)
             #     else:
             #         st.warning("Não há dados semanais suficientes para gerar o mapa de calor para este período.")
+
 
