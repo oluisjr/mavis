@@ -39,7 +39,7 @@ st.subheader("Análise Diária dos Sensores")
 
 # --- Leitura dos Dados e Aplicação dos Filtros ---
 filtros = st.session_state.get('filtros_aplicados', {})
-receita_str = filtros.get('receita_fmt', '123')
+receita_str = filtros.get('receita_fmt', '1')
 (df_total, df_diario, df_semanal, df_mensal, df_anual), messages = data_loader.carregar_dados_por_receita(receita_str)
 
 # Você precisará calcular os riscos aqui se a página os usar
@@ -192,6 +192,7 @@ else:
         #             st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
         #         else:
         #             st.info("Tudo normal por aqui...")
+
 
 
 
