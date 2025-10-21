@@ -37,7 +37,7 @@ st.subheader("Análise Anual dos Sensores")
 
 # --- Leitura dos Dados e Aplicação dos Filtros ---
 filtros = st.session_state.get('filtros_aplicados', {})
-receita_str = filtros.get('receita_fmt', '123')
+receita_str = filtros.get('receita_fmt', '1')
 (df_total, df_diario, df_semanal, df_mensal, df_anual), messages = data_loader.carregar_dados_por_receita(receita_str)
 
 if df_anual.empty:
@@ -72,6 +72,7 @@ else:
             st.caption(analysis.analisar_tendencia(df_anual_plot, sensor))
         else:
             st.info(f"Não há dados anuais suficientes para o sensor {sensor} neste período.")
+
 
 
 
