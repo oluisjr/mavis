@@ -264,7 +264,7 @@ def render_filter_form(df_total_completo):
         # Lógica para encontrar o valor padrão '123' ou o valor já salvo
         default_receita_fmt = st.session_state.filtros_aplicados['receita_fmt']
         if default_receita_fmt not in receitas_disponiveis:
-             default_receita_fmt = next((r for r in receitas_disponiveis if r.startswith("1 ")), receitas_disponiveis[0])
+             default_receita_fmt = next((r for r in receitas_disponiveis if r.startswith("123 ")), receitas_disponiveis[0])
 
         receita_selecionada_fmt = st.selectbox(
             "Selecione a Receita:",
