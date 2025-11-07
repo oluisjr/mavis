@@ -29,7 +29,7 @@ def check_password():
     def password_entered():
         """Função chamada sempre que o texto na caixa de senha muda."""
         # st.secrets é a forma segura do Streamlit Cloud de ler as suas senhas
-        valid_passwords = st.secrets.get("VALID_PASSWORDS", "").split(',')
+       # valid_passwords = st.secrets.get("VALID_PASSWORDS", "").split(',')
         
         if st.session_state.get("password") in valid_passwords:
             st.session_state.authenticated = True
