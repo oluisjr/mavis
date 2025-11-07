@@ -46,11 +46,12 @@ st.markdown("---")
         on_change=password_entered,
         key="password"
     )
-"""
+
 # --- Lógica de Acesso ---
 if not st.session_state.get('authenticated', False):
     check_password()
 else:
+"""
     st.success("Login bem-sucedido! A redirecionar...")
     st.switch_page("pages/0_🏠_Sumário_Executivo.py")
 
