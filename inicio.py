@@ -22,12 +22,12 @@ ui_components.hide_sidebar_nav()
 ui_components.render_mavis_header()
 st.markdown("---")
 
-
+"""
 # --- Formulário e Lógica de Login ---
-def check_password():
-    """Função que renderiza o campo de senha e verifica a autenticação."""
+#def check_password():
+    Função que renderiza o campo de senha e verifica a autenticação.
     def password_entered():
-        """Função chamada sempre que o texto na caixa de senha muda."""
+        Função chamada sempre que o texto na caixa de senha muda.
         # st.secrets é a forma segura do Streamlit Cloud de ler as suas senhas
        # valid_passwords = st.secrets.get("VALID_PASSWORDS", "").split(',')
         
@@ -46,7 +46,7 @@ def check_password():
         on_change=password_entered,
         key="password"
     )
-
+"""
 # --- Lógica de Acesso ---
 if not st.session_state.get('authenticated', False):
     check_password()
