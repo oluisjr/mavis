@@ -26,7 +26,7 @@ st.markdown("---")
 def check_password():
     #Função que renderiza o campo de senha e verifica a autenticação.
     def password_entered():
-        Função chamada sempre que o texto na caixa de senha muda.
+        #Função chamada sempre que o texto na caixa de senha muda.
         # st.secrets é a forma segura do Streamlit Cloud de ler as suas senhas
         valid_passwords = st.secrets.get("VALID_PASSWORDS", "").split(',')
         
@@ -52,6 +52,7 @@ if not st.session_state.get('authenticated', False):
 else:
     st.success("Login bem-sucedido! A redirecionar...")
     st.switch_page("pages/0_🏠_Sumário_Executivo.py")
+
 
 
 
