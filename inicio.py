@@ -22,7 +22,6 @@ ui_components.hide_sidebar_nav()
 ui_components.render_mavis_header()
 st.markdown("---")
 
-"""
 # --- Formulário e Lógica de Login ---
 #def check_password():
     Função que renderiza o campo de senha e verifica a autenticação.
@@ -51,7 +50,7 @@ st.markdown("---")
 if not st.session_state.get('authenticated', False):
     check_password()
 else:
-"""
     st.success("Login bem-sucedido! A redirecionar...")
     st.switch_page("pages/0_🏠_Sumário_Executivo.py")
+
 
