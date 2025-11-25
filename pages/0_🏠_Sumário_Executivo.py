@@ -8,7 +8,13 @@ from app import config, data_loader, ui_components, analysis, session_manager
 
 # --- Lógica de Controle de Erro e Configuração da Página ---
 
-session_manager.initialize_session_state()
+# ============================================================
+# VERIFICA LOGIN
+# ============================================================
+if not st.session_state.get('authenticated', False):
+    st.error("Acesso negado. Por favor, faça o login na página principal.")
+    st.stop()
+
 
 if 'error_occurred' not in st.session_state:
     st.session_state.error_occurred = False
@@ -289,6 +295,7 @@ else:
             
     st.markdown("---")
     st.caption("Developed by *Luis Ignacio* - 2025")
+
 
 
 
