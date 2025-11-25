@@ -24,7 +24,7 @@ st.set_page_config(
     page_icon=favicon
 )
 
-ui_components.hide_streamlit_elements()
+ui_components.hide_sidebar_nav()
 
 
 # ============================================================
