@@ -9,7 +9,6 @@ import streamlit.components.v1 as components
 if not st.session_state.get('authenticated', False):
     st.error("Acesso negado. Por favor, faça o login na página principal.")
     st.stop()
-    st.navigation(main.py)
 
 # ============================================================
 # CONFIGURAÇÕES DA PÁGINA
