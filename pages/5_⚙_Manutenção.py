@@ -8,7 +8,12 @@ import os
 import json
 from dotenv import load_dotenv
 
-session_manager.initialize_session_state()
+# ============================================================
+# VERIFICA LOGIN
+# ============================================================
+if not st.session_state.get('authenticated', False):
+    st.error("Acesso negado. Por favor, faça o login na página principal.")
+    st.stop()
 
 load_dotenv()
 FIREBASE_KEY_PATH = os.getenv("FIREBASE_KEY_PATH")
