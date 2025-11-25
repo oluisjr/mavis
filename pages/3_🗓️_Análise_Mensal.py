@@ -5,8 +5,13 @@ import streamlit.components.v1 as components
 from pyecharts import options as opts
 from pyecharts.charts import HeatMap
 
-session_manager.initialize_session_state()
-
+# ============================================================
+# VERIFICA LOGIN
+# ============================================================
+if not st.session_state.get('authenticated', False):
+    st.error("Acesso negado. Por favor, faça o login na página principal.")
+    st.stop()
+    
 # --- Configurações, Sidebar e Cabeçalho ---
 if 'error_occurred' not in st.session_state:
     st.session_state.error_occurred = False
@@ -130,5 +135,6 @@ else:
             #         components.html(heatmap.render_embed(), height=550, width=1400, scrolling=True)
             #     else:
             #         st.warning("Não há dados semanais suficientes para gerar o mapa de calor para este período.")
+
 
 
