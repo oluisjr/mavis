@@ -2,8 +2,13 @@ import streamlit as st
 import pandas as pd
 from app import config, analysis, ui_components, data_loader, session_manager
 
-session_manager.initialize_session_state()
-
+# ============================================================
+# VERIFICA LOGIN
+# ============================================================
+if not st.session_state.get('authenticated', False):
+    st.error("Acesso negado. Por favor, faça o login na página principal.")
+    st.stop()
+    
 # --- Configurações, Sidebar e Cabeçalho ---
 if 'error_occurred' not in st.session_state:
     st.session_state.error_occurred = False
@@ -72,6 +77,7 @@ else:
             st.caption(analysis.analisar_tendencia(df_anual_plot, sensor))
         else:
             st.info(f"Não há dados anuais suficientes para o sensor {sensor} neste período.")
+
 
 
 
