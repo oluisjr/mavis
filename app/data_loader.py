@@ -72,68 +72,130 @@ def carregar_dados_iniciais():
 @st.cache_data(show_spinner="Carregando dados detalhados (Parquet)...")
 def carregar_parquet_por_receita(receita_selecionada):
     """
-    Carrega arquivos Parquet hospedados no GitHub Raw.
-    - Se receita_selecionada == "Todas": concatena todos os arquivos da LISTA_PARQUETS
-    - Se receita específica: carrega o parquet daquela receita
+    Leitura mais robusta de Parquet remoto (GitHub RAW).
+    - Faz download em streaming para arquivo temporário.
+    - Checa status_code e content-type.
+    - Tenta leitura com pyarrow, se falhar tenta fastparquet.
+    - Escreve logs no Streamlit para diagnóstico.
     """
-
     base_url = config.CAMINHO_PARQUETS.rstrip("/")
+    st.info("Debug: iniciando leitura do parquet...")
 
-    def baixar_parquet(url):
-        """Baixa via HTTP e retorna DataFrame."""
+    def baixar_para_tempfile(url, chunk_size=8192, timeout=60):
+        st.write(f"Debug: tentando {url}")
         try:
-            resp = requests.get(url, timeout=30)
-
-            if resp.status_code != 200:
-                st.warning(f"Erro ao acessar {url} (status {resp.status_code})")
-                return pd.DataFrame()
-
-            return pd.read_parquet(BytesIO(resp.content), engine="pyarrow")
-
+            resp = requests.get(url, stream=True, timeout=timeout)
         except Exception as e:
-            st.error(f"Erro ao baixar parquet em {url}: {e}")
-            return pd.DataFrame()
+            st.error(f"Erro de conexão ao requisitar {url}: {e}")
+            st.write(traceback.format_exc())
+            return None, None
 
-    # ====== CASO 1 — CARREGAR TODOS OS PARQUETS ======
+        st.write(f"Debug: status_code = {resp.status_code}")
+        st.write(f"Debug: headers = {dict(resp.headers)}")
+
+        if resp.status_code != 200:
+            st.error(f"Não foi possível baixar o arquivo (status {resp.status_code}).")
+            return None, resp
+
+        # tenta checar content-type
+        content_type = resp.headers.get("Content-Type", "")
+        st.write(f"Debug: content-type = {content_type}")
+
+        # salva em tempfile
+        try:
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
+            tamanho_baixado = 0
+            for chunk in resp.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    tmp.write(chunk)
+                    tamanho_baixado += len(chunk)
+            tmp.flush()
+            tmp.close()
+            st.write(f"Debug: salvo em {tmp.name} ({tamanho_baixado} bytes)")
+            return tmp.name, resp
+        except Exception as e:
+            st.error(f"Erro ao salvar em arquivo temporário: {e}")
+            st.write(traceback.format_exc())
+            return None, resp
+
+    # === Caso: Todas ===
     if receita_selecionada == "Todas":
-
         if "LISTA_PARQUETS" not in st.secrets:
-            st.error(
-                "Você escolheu 'Todas', mas não definiu LISTA_PARQUETS no secrets.toml.\n"
-                "Adicione algo assim:\n\n"
-                'LISTA_PARQUETS = ["dados_detalhados_101.parquet", "dados_detalhados_102.parquet"]'
-            )
+            st.error("LISTA_PARQUETS não definido no secrets. Não posso carregar 'Todas'.")
             return pd.DataFrame()
 
         arquivos = st.secrets["LISTA_PARQUETS"]
         dfs = []
-
         for arq in arquivos:
             url = f"{base_url}/{arq}"
-            df_temp = baixar_parquet(url)
+            tmp_path, resp = baixar_para_tempfile(url)
+            if not tmp_path:
+                st.warning(f"Falha ao baixar {arq}, pulando.")
+                continue
 
-            if not df_temp.empty:
-                dfs.append(df_temp)
+            # tenta ler o parquet
+            df = None
+            try:
+                df = pd.read_parquet(tmp_path, engine="pyarrow")
+                st.write(f"Debug: leitura pyarrow OK para {arq}")
+            except Exception as e_py:
+                st.warning(f"pyarrow falhou para {arq}: {e_py}")
+                st.write(traceback.format_exc())
+                try:
+                    df = pd.read_parquet(tmp_path, engine="fastparquet")
+                    st.write(f"Debug: leitura fastparquet OK para {arq}")
+                except Exception as e_fp:
+                    st.error(f"fastparquet também falhou para {arq}: {e_fp}")
+                    st.write(traceback.format_exc())
+                    df = None
+
+            # remove temporário
+            try:
+                os.remove(tmp_path)
+            except:
+                pass
+
+            if df is not None and not df.empty:
+                dfs.append(df)
 
         if not dfs:
-            st.warning("Nenhum arquivo Parquet válido encontrado.")
+            st.warning("Nenhum parquet válido carregado.")
             return pd.DataFrame()
-
         return pd.concat(dfs, ignore_index=True)
 
-    # ====== CASO 2 — APENAS UMA RECEITA ======
+    # === Caso: receita específica ===
     nome = f"dados_detalhados_{receita_selecionada}.parquet"
     url = f"{base_url}/{nome}"
 
-    df = baixar_parquet(url)
+    tmp_path, resp = baixar_para_tempfile(url)
+    if not tmp_path:
+        st.error("Falha ao baixar o parquet solicitado.")
+        return pd.DataFrame()
+
+    # tenta ler com pyarrow, depois fastparquet
+    try:
+        df = pd.read_parquet(tmp_path, engine="pyarrow")
+        st.write("Debug: leitura com pyarrow OK.")
+    except Exception as e1:
+        st.warning(f"pyarrow falhou: {e1}")
+        st.write(traceback.format_exc())
+        try:
+            df = pd.read_parquet(tmp_path, engine="fastparquet")
+            st.write("Debug: leitura com fastparquet OK.")
+        except Exception as e2:
+            st.error(f"fastparquet falhou: {e2}")
+            st.write(traceback.format_exc())
+            df = pd.DataFrame()
+
+    # cleanup
+    try:
+        os.remove(tmp_path)
+    except:
+        pass
 
     if df.empty:
-        st.warning(f"Nenhum parquet encontrado para a receita {receita_selecionada}.")
-
+        st.warning("Parquet lido, mas DataFrame vazio ou leitura falhou.")
     return df
-
-
-
 # ============================================================
 # 3. CARREGAR ESTATÍSTICAS
 # ============================================================
@@ -226,3 +288,4 @@ def carregar_dados_por_receita(receita_selecionada):
         return vazio, mensagens
 
     return (df_total, df_dia, df_semana, df_mes, df_ano), mensagens
+
