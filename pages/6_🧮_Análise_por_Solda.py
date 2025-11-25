@@ -24,8 +24,7 @@ st.set_page_config(
     page_icon=favicon
 )
 
-ui_components.hide_sidebar_nav()
-
+ui_components.hide_main_page_nav_and_footer()
 
 # ============================================================
 # CARREGA OS DADOS DOS PARQUETS
