@@ -28,7 +28,6 @@ ui_components.hide_main_page_nav_and_footer()
 
 df_total_completo = data_loader.carregar_dados_iniciais()
 # A página chama a sua própria sidebar, passando o identificador 'diaria'
-ui_components.render_sidebar(df_total_completo, page_name='diaria')
 
 # ============================================================
 # CARREGA OS DADOS DOS PARQUETS
