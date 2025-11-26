@@ -11,62 +11,115 @@ import traceback
 # ============================================================
 # 1. CARREGA O EXCEL PRINCIPAL ("Dados Completos")
 # ============================================================
-@st.cache_data(show_spinner="Carregando dados iniciais...")
-def carregar_dados_iniciais():
-    """Carrega o Excel principal (aba: Dados Completos)."""
+@st.cache_data(show_spinner="Carregando dados detalhados (Parquet)...")
+def carregar_parquet_por_receita(receita_selecionada):
+    """
+    Carrega arquivos Parquet do GitHub Releases de forma otimizada.
+    - Lê somente colunas essenciais
+    - Aplica os filtros (ano/mês/dia) ainda dentro do loader
+    - Limita o DF final a no máximo ~15k linhas
+    - Usa headers adequados para releases privadas
+    """
+    base_url = config.CAMINHO_PARQUETS.rstrip("/")
 
-    try:
-        url = config.CAMINHO_EXCEL_URL
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "*/*"
+    }
 
-        if not url:
-            st.error("Caminho do Excel não definido em st.secrets.")
-            return pd.DataFrame()
+    # -------------------------------------------
+    # 🔥 Redução eficiente do DF (mínima alteração)
+    # -------------------------------------------
+    def reduzir_dataframe(df):
+        colunas_essenciais = [
+            "DATAHORA", "DATA",
+            "VELOCIDADE", "CORRENTE",
+            "PRESSAO_SOLDA", "PRESSAO_MARTELADOR",
+            "TEMPERATURA"
+        ]
+        existentes = [c for c in colunas_essenciais if c in df.columns]
+        df = df[existentes].copy()
 
-        # 📌 CARREGAR REMOTO (GitHub RAW)
-        if url.startswith("http"):
-            resp = requests.get(url, timeout=30)
+        filtros = st.session_state.get("filtros_aplicados", {})
 
-            if resp.status_code != 200:
-                st.error(f"Erro ao acessar o arquivo Excel remoto (status {resp.status_code}).")
-                return pd.DataFrame()
+        # Filtros antecipados (antes do retorno)
+        if "anos" in filtros and filtros["anos"]:
+            df = df[df["DATAHORA"].dt.year.isin(filtros["anos"])]
 
-            content = BytesIO(resp.content)
-            xls = pd.ExcelFile(content)
+        if "meses" in filtros and filtros["meses"]:
+            df = df[df["DATAHORA"].dt.month.isin(filtros["meses"])]
 
-        # 📌 CARREGAR LOCAL (ambiente de desenvolvimento)
-        else:
-            caminho_excel = Path(url).expanduser().resolve()
-            if not caminho_excel.exists():
-                st.error(f"Arquivo Excel não encontrado: {caminho_excel}")
-                return pd.DataFrame()
+        if "dias" in filtros and filtros["dias"]:
+            df = df[df["DATAHORA"].dt.day.isin(filtros["dias"])]
 
-            xls = pd.ExcelFile(caminho_excel)
-
-        # Detecta aba DataFrame independentemente de variações de letra
-        nomes = [n.lower().strip() for n in xls.sheet_names]
-
-        if "dados completos" in nomes:
-            aba = xls.sheet_names[nomes.index("dados completos")]
-        else:
-            st.error("A aba 'Dados Completos' não foi encontrada no Excel.")
-            return pd.DataFrame()
-
-        df = pd.read_excel(xls, sheet_name=aba)
-
-        # Normalização importante
-        if "DATA" in df.columns:
-            df["DATA"] = pd.to_datetime(df["DATA"], errors="coerce")
-
-        if "PROGRAM_Nº" in df.columns:
-            df["PROGRAM_Nº"] = df["PROGRAM_Nº"].astype(str).str.strip()
+        # Limite de linhas — evita travamento no Cloud
+        if len(df) > 15000:
+            df = df.sample(15000).sort_values("DATAHORA")
 
         return df
 
-    except Exception as e:
-        st.error(f"Erro ao carregar o Excel: {e}")
+    # -------------------------------------------
+    # Função auxiliar: baixar arquivo .parquet
+    # -------------------------------------------
+    def baixar_parquet(url):
+        try:
+            resp = requests.get(
+                url,
+                headers=headers,
+                timeout=60,
+                allow_redirects=True,
+                stream=True
+            )
+            if resp.status_code != 200:
+                st.warning(f"Falha ao acessar {url} (status: {resp.status_code})")
+                return None
+
+            data = resp.content
+            df = pd.read_parquet(BytesIO(data), engine="pyarrow")
+
+            # garantir datetime
+            if "DATAHORA" in df.columns:
+                df["DATAHORA"] = pd.to_datetime(df["DATAHORA"], errors="coerce")
+                df["DATA"] = df["DATAHORA"].dt.date
+
+            return df
+
+        except Exception as e:
+            st.error(f"Erro ao baixar/ler o parquet {url}: {e}")
+            return None
+
+    # -------------------------------------------
+    # Caso "Todas as receitas"
+    # -------------------------------------------
+    if receita_selecionada == "Todas":
+        nomes = config.LISTA_PARQUETS
+        dfs = []
+
+        for nome in nomes:
+            url = f"{base_url}/{nome}"
+            df_temp = baixar_parquet(url)
+            if df_temp is not None and not df_temp.empty:
+                dfs.append(df_temp)
+
+        if not dfs:
+            st.warning("Nenhum arquivo válido encontrado.")
+            return pd.DataFrame()
+
+        df_final = pd.concat(dfs, ignore_index=True)
+        return reduzir_dataframe(df_final)
+
+    # -------------------------------------------
+    # Caso receita específica
+    # -------------------------------------------
+    nome = f"dados_detalhados_{receita_selecionada}.parquet"
+    url = f"{base_url}/{nome}"
+
+    df = baixar_parquet(url)
+    if df is None or df.empty:
+        st.warning(f"Nenhum dado encontrado para {receita_selecionada}.")
         return pd.DataFrame()
 
-
+    return reduzir_dataframe(df)
 
 # ============================================================
 # 2. CARREGAR PARQUETS REMOTAMENTE (GitHub RAW)
@@ -290,5 +343,6 @@ def carregar_dados_por_receita(receita_selecionada):
         return vazio, mensagens
 
     return (df_total, df_dia, df_semana, df_mes, df_ano), mensagens
+
 
 
