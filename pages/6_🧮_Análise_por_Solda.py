@@ -52,7 +52,7 @@ df_parquet["DATA"] = df_parquet["DATAHORA"].dt.date
 # SIDEBAR PADRÃO DA APLICAÇÃO
 # ============================================================
 df_fake = pd.DataFrame({"DATA": df_parquet["DATA"]})
-ui_components.render_sidebar(df_fake, page_name='detalhada')
+ui_components.render_sidebar(df_fake, page_name='diaria')
 
 
 # ============================================================
