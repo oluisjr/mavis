@@ -4,6 +4,8 @@ import requests
 from io import BytesIO
 from pathlib import Path
 from . import config
+import tempfile
+import traceback
 
 
 # ============================================================
@@ -288,4 +290,5 @@ def carregar_dados_por_receita(receita_selecionada):
         return vazio, mensagens
 
     return (df_total, df_dia, df_semana, df_mes, df_ano), mensagens
+
 
