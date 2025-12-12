@@ -156,57 +156,34 @@ def _calculate_tendency(dados: pd.DataFrame, sensor: str) -> tuple[float, float]
     
     return variacao_global, derivada_media
 
-def simular_risco_por_regras(df_dados, sensor: str, receita_str: str = "0"):
+def simular_risco_por_regras(df_dados, sensor: str):
     """
-    Calcula o Potencial de Falha com uma fórmula proporcional e com pesos específicos por receita.
+    Calcula o Potencial de Falha com base em bandas de variação de tendência precisas.
     """
     dados = df_dados[[sensor]].dropna()
     if len(dados) < 4: return 5.0
 
     variacao_global, _ = _calculate_tendency(dados, sensor)
-    variacao_abs = abs(variacao_global)
-    
-    risco_base = 5.0
     
     if sensor == 'TEMPERATURA':
         inicio = dados[sensor].iloc[:3].mean()
         fim = dados[sensor].iloc[-3:].mean()
         variacao_absoluta = abs(fim - inicio)
-        risco_calculado = risco_base + (variacao_absoluta * 5.0)
+        if variacao_absoluta > 5: return 85.0
+        elif variacao_absoluta >= 4: return 65.0
+        elif variacao_absoluta >= 3: return 40.0
+        elif variacao_absoluta > 1: return 25.0
+        else: return 10.0
     else:
+        variacao_abs = abs(variacao_global)
         
-        # Define um peso de tendência base
-        peso_tendencia = 7.0
-        
-        # A Corrente é mais sensível
-        if sensor == 'CORRENTE':
-            peso_tendencia = 9.0
-        
-        # Se a receita for a 580, a corrente tem um peso ainda maior.
-        if sensor == 'CORRENTE' and receita_str == '580':
-            peso_tendencia = 10.0 # Peso máximo para este caso específico
-            
-        risco_calculado = risco_base + (variacao_abs * peso_tendencia)
-
-    risco_final = min(risco_calculado, 100.0)
-    return round(risco_final, 1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        if variacao_abs > 1.0:
+            return 85.0  # Anomalia
+        elif 5.0 <= variacao_abs <= 1.0:
+            return 65.0  # Risco Grave
+        elif 8.0 <= variacao_abs < 5.0:
+            return 40.0  # Risco Moderado
+        elif 10.0 < variacao_abs < 8.0:
+            return 25.0  # Risco Leve
+        else: # <= 1.0
+            return 0.0
