@@ -85,11 +85,11 @@ else:
                     
                 riscos_para_analise = riscos_dia if riscos_dia else riscos_mes
 
-                risco = riscos_para_analise.get(sensor, 0)
-                score = analysis.calcular_health_score(risco)
-                liquid_html_raw =ui_components.render_mini_liquid_chart(score)
-                centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 60px; width: 100%;">{liquid_html_raw}</div>"""
-                components.html(centered_liquid_html, height=80)
+                #risco = riscos_para_analise.get(sensor, 0)
+                #score = analysis.calcular_health_score(risco)
+                #liquid_html_raw =ui_components.render_mini_liquid_chart(score)
+                #centered_liquid_html = f"""<div style="display: flex; justify-content: center; align-items: center; height: 60px; width: 100%;">{liquid_html_raw}</div>"""
+                #components.html(centered_liquid_html, height=80)
                 
             st.markdown(analysis.detectar_anomalia(df_final, sensor))
             st.line_chart(df_final.set_index('DATA')[sensor])
@@ -197,6 +197,7 @@ else:
         #             st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
         #         else:
         #             st.info("Tudo normal por aqui...")
+
 
 
 
