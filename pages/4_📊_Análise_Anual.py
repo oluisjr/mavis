@@ -70,13 +70,14 @@ else:
             df_anual_plot = df_anual_filtrado.groupby(df_anual_filtrado['ANO'].dt.year)[sensor].mean().reset_index()
 
         # Agrupa os dados por ano e calcula a média para o sensor atual
-        df_anual_plot = df_anual_filtrado.groupby(df_anual_filtrado['ANO'].dt.year)[sensor].mean().reset_index()
+        #df_anual_plot = df_anual_filtrado.groupby(df_anual_filtrado['ANO'].dt.year)[sensor].mean().reset_index()
         
         if not df_anual_plot.empty:
             st.bar_chart(df_anual_plot.set_index('ANO')[sensor])
             st.caption(analysis.analisar_tendencia(df_anual_plot, sensor))
         else:
             st.info(f"Não há dados anuais suficientes para o sensor {sensor} neste período.")
+
 
 
 
