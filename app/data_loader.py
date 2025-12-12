@@ -4,264 +4,113 @@ import requests
 from io import BytesIO
 from pathlib import Path
 from . import config
-import tempfile
-import traceback
 
-
-# ============================================================
-# 1. CARREGA O EXCEL PRINCIPAL ("Dados Completos")
-# ============================================================
 @st.cache_data(show_spinner="Carregando dados iniciais...")
 def carregar_dados_iniciais():
-    """Carrega a aba 'Dados Completos' do Excel inicial."""
+    """Carrega a planilha 'Dados Completos' a partir de uma URL ou caminho local."""
     try:
-        url = config.CAMINHO_EXCEL_URL
-
-        if not url:
-            st.error("CAMINHO_EXCEL_URL não definido em st.secrets.")
+        if not config.CAMINHO_EXCEL_URL:
+            st.error("O caminho do arquivo Excel não foi definido no .env (caminho_excel).")
             return pd.DataFrame()
 
-        # Remoto (GitHub RAW ou Releases)
-        if url.startswith("http"):
-            resp = requests.get(url, timeout=30)
-            if resp.status_code != 200:
-                st.error(f"Erro ao acessar arquivo Excel remoto ({resp.status_code})")
-                return pd.DataFrame()
-            content = BytesIO(resp.content)
-            xls = pd.ExcelFile(content)
-
-        # Local (desenvolvimento)
+        # Detecta se é URL (http/https) ou arquivo local
+        if config.CAMINHO_EXCEL_URL.startswith("http://") or config.CAMINHO_EXCEL_URL.startswith("https://"):
+            response = requests.get(config.CAMINHO_EXCEL_URL)
+            response.raise_for_status()
+            excel_content = BytesIO(response.content)
+            df = pd.read_excel(excel_content, sheet_name="Dados Completos")
         else:
-            caminho_excel = Path(url).expanduser().resolve()
+            caminho_excel = Path(config.CAMINHO_EXCEL_URL).expanduser().resolve()
             if not caminho_excel.exists():
-                st.error(f"Arquivo Excel não encontrado: {caminho_excel}")
+                st.error(f"Arquivo não encontrado: {caminho_excel}")
                 return pd.DataFrame()
-            xls = pd.ExcelFile(caminho_excel)
+            df = pd.read_excel(caminho_excel, sheet_name="Dados Completos")
 
-        # Identificar aba por nome aproximado
-        nomes = [n.lower().strip() for n in xls.sheet_names]
-        if "dados completos" in nomes:
-            aba = xls.sheet_names[nomes.index("dados completos")]
-        else:
-            st.error("A aba 'Dados Completos' não existe no Excel.")
-            return pd.DataFrame()
-
-        df = pd.read_excel(xls, sheet_name=aba)
-
-        if "DATA" in df.columns:
-            df["DATA"] = pd.to_datetime(df["DATA"], errors="coerce")
-        if "PROGRAM_Nº" in df.columns:
-            df["PROGRAM_Nº"] = df["PROGRAM_Nº"].astype(str).str.strip()
-
+        # Tratamento dos dados
+        df["DATA"] = pd.to_datetime(df["DATA"], errors="coerce")
+        df["PROGRAM_Nº"] = df["PROGRAM_Nº"].astype(str).str.strip()
         return df
 
     except Exception as e:
-        st.error(f"Erro ao carregar o Excel inicial: {e}")
+        st.error(f"Erro ao carregar o arquivo Excel inicial: {e}")
         return pd.DataFrame()
 
-
-
-# ============================================================
-# 2. CARREGA PARQUET — otimização mínima (rápida e leve)
-# ============================================================
-@st.cache_data(show_spinner="Carregando detalhes da solda (Parquet)...")
-def carregar_parquet_por_receita(receita_selecionada):
-    """
-    Carrega Parquet da Release:
-    - Apenas colunas essenciais
-    - Max ~15k linhas
-    - Filtros aplicados dentro do loader
-    - Headers adequados para GitHub Releases privados
-    """
-    base_url = config.CAMINHO_PARQUETS.rstrip("/")
-
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "*/*"
-    }
-
-    # -------------------------------------------
-    # 🔥 Redução eficiente do DF
-    # -------------------------------------------
-    def reduzir_dataframe(df):
-        colunas_essenciais = [
-            "DATAHORA", "DATA",
-            "VELOCIDADE", "CORRENTE",
-            "PRESSAO_SOLDA", "PRESSAO_MARTELADOR",
-            "TEMPERATURA"
-        ]
-        existentes = [c for c in colunas_essenciais if c in df.columns]
-        df = df[existentes].copy()
-
-        # filtros aplicados aqui
-        filtros = st.session_state.get("filtros_aplicados", {})
-
-        if "anos" in filtros and filtros["anos"]:
-            df = df[df["DATAHORA"].dt.year.isin(filtros["anos"])]
-
-        if "meses" in filtros and filtros["meses"]:
-            df = df[df["DATAHORA"].dt.month.isin(filtros["meses"])]
-
-        if "dias" in filtros and filtros["dias"]:
-            df = df[df["DATAHORA"].dt.day.isin(filtros["dias"])]
-
-        # limite de segurança para evitar travar o Streamlit Cloud
-        if len(df) > 15000:
-            df = df.sample(15000).sort_values("DATAHORA")
-
-        return df
-
-    # -------------------------------------------
-    # Função auxiliar para baixar parquet
-    # -------------------------------------------
-    def baixar_parquet(url):
-        try:
-            resp = requests.get(
-                url,
-                headers=headers,
-                timeout=60,
-                allow_redirects=True,
-                stream=True
-            )
-
-            if resp.status_code != 200:
-                st.warning(f"Falha ao acessar {url} (status {resp.status_code})")
-                return None
-
-            data = resp.content
-            df = pd.read_parquet(BytesIO(data), engine="pyarrow")
-
-            # garantir datetime
-            if "DATAHORA" in df.columns:
-                df["DATAHORA"] = pd.to_datetime(df["DATAHORA"], errors="coerce")
-                df["DATA"] = df["DATAHORA"].dt.date
-
-            return df
-
-        except Exception as e:
-            st.error(f"Erro ao baixar/ler parquet: {e}")
-            return None
-
-    # -------------------------------------------
-    # Caso: todas as receitas
-    # -------------------------------------------
-    if receita_selecionada == "Todas":
-        nomes = config.LISTA_PARQUETS
-        dfs = []
-
-        for nome in nomes:
-            url = f"{base_url}/{nome}"
-            df_temp = baixar_parquet(url)
-            if df_temp is not None and not df_temp.empty:
-                dfs.append(df_temp)
-
-        if not dfs:
-            st.warning("Nenhum arquivo Parquet encontrado.")
-            return pd.DataFrame()
-
-        df_final = pd.concat(dfs, ignore_index=True)
-        return reduzir_dataframe(df_final)
-
-    # -------------------------------------------
-    # Caso: receita única
-    # -------------------------------------------
-    nome = f"dados_detalhados_{receita_selecionada}.parquet"
-    url = f"{base_url}/{nome}"
-
-    df = baixar_parquet(url)
-    if df is None or df.empty:
-        st.warning(f"Nenhum dado detalhado encontrado para a receita {receita_selecionada}.")
-        return pd.DataFrame()
-
-    return reduzir_dataframe(df)
-
-
-
-# ============================================================
-# 3. CARREGA ESTATÍSTICAS
-# ============================================================
-@st.cache_data(show_spinner=False)
-def carregar_estatisticas():
-    try:
-        url = config.ESTATISTICA_URL
-
-        if url.startswith("http"):
-            resp = requests.get(url, timeout=20)
-            content = BytesIO(resp.content)
-            return pd.read_excel(content, sheet_name="Sheet1")
-
-        return pd.read_excel(url, sheet_name="Sheet1")
-
-    except Exception as e:
-        st.error(f"Erro ao carregar estatísticas: {e}")
-        return pd.DataFrame()
-
-
-
-# ============================================================
-# 4. LISTA “Top Receitas”
-# ============================================================
-@st.cache_data(show_spinner="Calculando Top Receitas...")
-def obter_top_4_receitas_formatadas():
-    try:
-        df = pd.read_excel(
-            config.CAMINHO_EXCEL_URL,
-            sheet_name="Dados Completos",
-            usecols=["PROGRAM_Nº"]
-        )
-        contagem = df["PROGRAM_Nº"].astype(str).str.strip().value_counts()
-        top4 = contagem.nlargest(4).index.tolist()
-        return ["Todas"] + [f"{r} ({contagem[r]})" for r in top4]
-
-    except Exception as e:
-        st.error(f"Erro ao obter Top Receitas: {e}")
-        return ["Todas"]
-
-
-
-# ============================================================
-# 5. CARREGAMENTO POR RECEITA (Excel)
-# ============================================================
 @st.cache_data(show_spinner="Carregando dados da receita...")
 def carregar_dados_por_receita(receita_selecionada):
-    """Carrega as abas Diária, Semanal, Mensal e Anual do Excel."""
-    msgs = []
-    vazio = (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
+    """Carrega os dados diários, semanais, mensais e anuais para uma receita específica."""
+    messages = []
+    empty_dfs = (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
 
     try:
-        df_total = pd.read_excel(config.CAMINHO_EXCEL_URL, sheet_name="Dados Completos")
-        df_total["DATA"] = pd.to_datetime(df_total["DATA"], errors="coerce")
+        df_total = pd.read_excel(config.CAMINHO_EXCEL_URL, sheet_name='Dados Completos')
+        df_total['DATA'] = pd.to_datetime(df_total['DATA'], errors='coerce')
 
-        if receita_selecionada == "Todas":
-            abas = {
-                "dia": "Médias Diárias",
-                "semana": "Médias Semanais",
-                "mes": "Médias Mensais",
-                "ano": "Médias Anuais",
-            }
+        if config.CAMINHO_EXCEL_URL is None:
+            messages.append(('error', "O caminho do arquivo Excel está indefinido (None)."))
+            return empty_dfs, messages
+            
+        xls = pd.ExcelFile(config.CAMINHO_EXCEL_URL)
+        sheet_names_from_file = {str(sheet).strip().lower(): str(sheet) for sheet in xls.sheet_names}
+
+        if receita_selecionada == 'Todas':
+            aba_diario, aba_semanal, aba_mensal, aba_anual = 'Médias Diárias', 'Médias Semanais', 'Médias Mensais', 'Médias Anuais'
         else:
-            r = str(receita_selecionada).strip()
-            abas = {
-                "dia": f"{r}",
-                "semana": f"{r} - Semanal",
-                "mes": f"{r} - Mensal",
-                "ano": f"{r} - Anual",
-            }
+            receita_str = str(receita_selecionada).strip()
+            aba_diario = f"{receita_str}"
+            aba_semanal = f"{receita_str} - Semanal"
+            aba_mensal = f"{receita_str} - Mensal"
+            aba_anual = f"{receita_str} - Anual"
 
-        def safe_load(sheet):
-            try:
-                return pd.read_excel(config.CAMINHO_EXCEL_URL, sheet_name=sheet)
-            except:
-                msgs.append(("toast", f"Aba não encontrada: {sheet}"))
+        def carregar_aba_segura(nome_aba_procurada):
+            nome_limpo = nome_aba_procurada.strip().lower()
+            if nome_limpo in sheet_names_from_file:
+                nome_original_da_aba = sheet_names_from_file[nome_limpo]
+                return pd.read_excel(config.CAMINHO_EXCEL_URL, sheet_name=nome_original_da_aba)
+            else:
+                messages.append(('toast', f"Aviso: Planilha '{nome_aba_procurada}' não encontrada."))
                 return pd.DataFrame()
 
-        df_dia    = safe_load(abas["dia"])
-        df_semana = safe_load(abas["semana"])
-        df_mes    = safe_load(abas["mes"])
-        df_ano    = safe_load(abas["ano"])
+        df_diario = carregar_aba_segura(aba_diario)
+        df_semanal = carregar_aba_segura(aba_semanal)
+        df_mensal = carregar_aba_segura(aba_mensal)
+        df_anual = carregar_aba_segura(aba_anual)
 
+    except FileNotFoundError:
+        messages.append(('error', f"Arquivo Excel não encontrado no caminho: {config.CAMINHO_EXCEL_URL}"))
+        return empty_dfs, messages
     except Exception as e:
-        msgs.append(("error", f"Erro ao ler Excel: {e}"))
-        return vazio, msgs
+        messages.append(('error', f"Erro inesperado ao ler o arquivo Excel: {e}"))
+        return empty_dfs, messages
 
-    return (df_total, df_dia, df_semana, df_mes, df_ano), msgs
+    # Processamento e normalização
+    if not df_diario.empty: df_diario['DATA'] = pd.to_datetime(df_diario['DATA'], errors='coerce')
+    if not df_semanal.empty: df_semanal['SEMANA'] = pd.to_datetime(df_semanal['SEMANA'].astype(str).str[:10], errors='coerce').dt.tz_localize(None)
+    if not df_mensal.empty: df_mensal['MES'] = pd.to_datetime(df_mensal['MES'], errors='coerce')
+    if not df_anual.empty: df_anual['ANO'] = pd.to_datetime(df_anual['ANO'], format='%Y', errors='coerce')
+
+    for df in [df_diario, df_semanal, df_mensal, df_anual]:
+        if not df.empty:
+            if 'VELOCIDADE' in df.columns: df['VELOCIDADE'] = df['VELOCIDADE'].astype(int) / 100
+            if 'CORRENTE' in df.columns: df['CORRENTE'] = df['CORRENTE'].astype(int) / 10
+            if 'PRESSAO_SOLDA' in df.columns: df['PRESSAO_SOLDA'] = df['PRESSAO_SOLDA'].astype(int) / 10
+            if 'TEMPERATURA' in df.columns: df['TEMPERATURA'] = (df['TEMPERATURA'].astype(int) / 10).round().astype(int)
+            if 'PRESSAO_MARTELADOR' in df.columns: df['PRESSAO_MARTELADOR'] = df['PRESSAO_MARTELADOR'].astype(int) / 10
+
+    return (df_total, df_diario, df_semanal, df_mensal, df_anual), messages
+@st.cache_data(show_spinner="Calculando Top Receitas...")
+def obter_top_4_receitas_formatadas():
+    """Encontra as 4 receitas com mais registros e retorna uma lista formatada."""
+    try:
+        df = pd.read_excel(config.CAMINHO_EXCEL_URL, sheet_name='Dados Completos', usecols=['PROGRAM_Nº'])
+        contagem = df['PROGRAM_Nº'].astype(str).str.strip().value_counts()
+        top_4_receitas = contagem.nlargest(4).index.tolist()
+        receitas_formatadas = ['Todas'] + [f"{rec} ({contagem[rec]})" for rec in top_4_receitas]
+        return receitas_formatadas
+    except Exception as e:
+        st.error(f"Erro ao carregar a lista de receitas: {e}")
+        return ['Todas']
+
+@st.cache_data(show_spinner=False)
+def carregar_estatisticas():
+    """Carrega dados estatísticos de um arquivo Excel."""
+    return pd.read_excel(config.ESTATISTICA_URL, sheet_name='Sheet1')
