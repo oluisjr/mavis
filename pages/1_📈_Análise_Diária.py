@@ -7,7 +7,7 @@ import streamlit.components.v1 as components
 # VERIFICA LOGIN
 # ============================================================
 if not st.session_state.get('authenticated', False):
-    st.error("Acesso negado. Por favor, faça #o login na página principal.")
+    st.error("Acesso negado. Por favor, faça #o login na página Início.")
     st.stop()
     
 # --- Configurações, Sidebar e Cabeçalho ---
@@ -197,6 +197,7 @@ else:
         #             st.caption(f"**Ações Recomendadas:**\n" + '\n'.join(rca_sensor['acoes_recomendadas']))
         #         else:
         #             st.info("Tudo normal por aqui...")
+
 
 
 
