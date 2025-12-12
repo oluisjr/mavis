@@ -9,7 +9,7 @@ from pyecharts.charts import HeatMap
 # VERIFICA LOGIN
 # ============================================================
 if not st.session_state.get('authenticated', False):
-    st.error("Acesso negado. Por favor, faça o login na página principal.")
+    st.error("Acesso negado. Por favor, faça o login na aba Início.")
     st.stop()
     
 # --- Configurações, Sidebar e Cabeçalho ---
@@ -139,6 +139,7 @@ else:
             #         components.html(heatmap.render_embed(), height=550, width=1400, scrolling=True)
             #     else:
             #         st.warning("Não há dados semanais suficientes para gerar o mapa de calor para este período.")
+
 
 
 
