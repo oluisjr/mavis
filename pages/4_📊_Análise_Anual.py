@@ -6,7 +6,7 @@ from app import config, analysis, ui_components, data_loader, session_manager
 # VERIFICA LOGIN
 # ============================================================
 if not st.session_state.get('authenticated', False):
-    st.error("Acesso negado. Por favor, faça o login na página principal.")
+    st.error("Acesso negado. Por favor, faça o login na página Início.")
     st.stop()
     
 # --- Configurações, Sidebar e Cabeçalho ---
@@ -77,6 +77,7 @@ else:
             st.caption(analysis.analisar_tendencia(df_anual_plot, sensor))
         else:
             st.info(f"Não há dados anuais suficientes para o sensor {sensor} neste período.")
+
 
 
 
