@@ -93,15 +93,17 @@ else:
                 with st.expander("Ver análise detalhada da IA"):
                     st.caption(analysis.analisar_tendencia(df_mensal_filtrado, sensor, sensor=sensor))
 
-        with col_direita:
-            if sensor == "TEMPERATURA":
-                st.markdown("### ⚠️ :gray-background[Sensor inoperante, impossível analisar!] ⚠️") # Pirômetro quebrado
-            else:
-                st.write("Gráfico de Barra")
-                st.bar_chart(df_mensal_filtrado.set_index('MES')[sensor], height=200, use_container_width=True)
+        # RETIRADO POR TEMPERATURA FORA DO AR ################################################################################
 
-                st.write("Gráfico de Área")
-                st.area_chart(df_mensal_filtrado.set_index('MES')[sensor], color="#1f77b4AA", height=100, use_container_width=True)
+        #with col_direita:
+            #if sensor == "TEMPERATURA":
+                #st.markdown("### ⚠️ :gray-background[Sensor inoperante, impossível analisar!] ⚠️") # Pirômetro quebrado
+            #else:
+                #st.write("Gráfico de Barra")
+                #st.bar_chart(df_mensal_filtrado.set_index('MES')[sensor], height=200, use_container_width=True)
+
+                #st.write("Gráfico de Área")
+                #st.area_chart(df_mensal_filtrado.set_index('MES')[sensor], color="#1f77b4AA", height=100, use_container_width=True)
 
             # if sensor == "TEMPERATURA" and not df_semanal_filtrado.empty:
             #     st.markdown("<br>", unsafe_allow_html=True)
@@ -137,6 +139,7 @@ else:
             #         components.html(heatmap.render_embed(), height=550, width=1400, scrolling=True)
             #     else:
             #         st.warning("Não há dados semanais suficientes para gerar o mapa de calor para este período.")
+
 
 
 
