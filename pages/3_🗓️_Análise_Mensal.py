@@ -57,6 +57,8 @@ if df_mensal.empty:
 df_mensal_filtrado = df_mensal.copy()
 df_semanal_filtrado = df_semanal.copy()
 
+df_mensal_filtrado['MES'] = pd.to_datetime(df_mensal_filtrado['MES'], errors='coerce')
+
 if filtros.get('anos'):
     df_mensal_filtrado = df_mensal_filtrado[df_mensal_filtrado['MES'].dt.year.isin(filtros['anos'])]
     df_semanal_filtrado = df_semanal_filtrado[df_semanal_filtrado['SEMANA'].dt.year.isin(filtros['anos'])]
@@ -135,6 +137,7 @@ else:
             #         components.html(heatmap.render_embed(), height=550, width=1400, scrolling=True)
             #     else:
             #         st.warning("Não há dados semanais suficientes para gerar o mapa de calor para este período.")
+
 
 
 
