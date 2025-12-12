@@ -97,7 +97,7 @@ else:
         with col_direita:
             if sensor == "TEMPERATURA":
                 #st.markdown("### ⚠️ :gray-background[Sensor inoperante, impossível analisar!] ⚠️") # Pirômetro quebrado
-                
+                continue
             else:
                 st.write("Gráfico de Barra")
                 st.bar_chart(df_mensal_filtrado.set_index('MES')[sensor], height=200, use_container_width=True)
@@ -139,6 +139,7 @@ else:
             #         components.html(heatmap.render_embed(), height=550, width=1400, scrolling=True)
             #     else:
             #         st.warning("Não há dados semanais suficientes para gerar o mapa de calor para este período.")
+
 
 
 
