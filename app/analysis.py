@@ -1,189 +1,128 @@
-from . import config
+"""Indicadores DESCRITIVOS de processo. Não estimam probabilidade de falha.
+
+Sem limites de engenharia, rótulos de falha e validação histórica, os resultados
+não devem ser apresentados como risco preditivo nem usados para comando automático.
+"""
+from __future__ import annotations
+
+import math
+import numpy as np
 import pandas as pd
+from . import config
 
-def analisar_tendencia(dados, eixo_y, sensor=None):
-    """Analisa a tendência global e a variação instantânea dos dados."""
-    if len(dados) < 4:
-        return "Período selecionado muito curto para análise confiável."
+MIN_AMOSTRAS_TENDENCIA = 4
+MIN_AMOSTRAS_DESVIO = 8
+COLUNAS_TEMPO = ("DATA", "SEMANA", "MES", "ANO")
 
-    # --- Cálculo da Tendência Global ---
-    inicio = dados[eixo_y].iloc[:2].mean() if sensor == "TEMPERATURA" else dados[eixo_y].iloc[:3].mean()
-    fim = dados[eixo_y].iloc[-2:].mean() if sensor == "TEMPERATURA" else dados[eixo_y].iloc[-3:].mean()
-    variacao_global = ((fim - inicio) / inicio) * 100 if inicio != 0 else 0
 
-    # --- Cálculo da Variação Instantânea ---
-    derivadas = dados[eixo_y].diff()
-    derivadas_percentual = (derivadas / dados[eixo_y].shift(1)) * 100
-    derivada_media = derivadas_percentual.mean()
+def _serie_ordenada(df: pd.DataFrame, sensor: str) -> pd.Series:
+    """Retorna valores numéricos finitos, ordenados cronologicamente quando possível."""
+    if df is None or df.empty or sensor not in df:
+        return pd.Series(dtype="float64")
+    dados = df.copy()
+    for coluna in COLUNAS_TEMPO:
+        if coluna in dados.columns:
+            datas = pd.to_datetime(dados[coluna], errors="coerce")
+            dados = dados.assign(_ordem=datas).sort_values("_ordem", kind="stable")
+            break
+    serie = pd.to_numeric(dados[sensor], errors="coerce").replace(
+        [np.inf, -np.inf], np.nan
+    ).dropna()
+    return serie.reset_index(drop=True).astype(float)
 
-    # --- Lógica para criar as descrições ---
-    if variacao_global < -1:
-        desc_global = f"**tendência de queda** (`{variacao_global:.2f}%`)"
-    elif variacao_global > 1:
-        desc_global = f"**tendência de alta** (`{variacao_global:.2f}%`)"
+
+def _medianas_extremas(serie: pd.Series) -> tuple[float, float]:
+    janela = max(2, math.ceil(len(serie) * 0.2))
+    return float(serie.iloc[:janela].median()), float(serie.iloc[-janela:].median())
+
+
+def analisar_tendencia(dados: pd.DataFrame, eixo_y: str, sensor: str | None = None) -> str:
+    """Descreve a mudança entre janelas robustas, sem inferir causalidade."""
+    serie = _serie_ordenada(dados, eixo_y)
+    if len(serie) < MIN_AMOSTRAS_TENDENCIA:
+        return "Dados insuficientes para avaliar tendência (mínimo: 4 registros válidos)."
+    inicio, fim = _medianas_extremas(serie)
+    delta = fim - inicio
+    if math.isclose(inicio, 0.0, abs_tol=1e-12):
+        mudanca = f"variação absoluta de {delta:+.3f} (base próxima de zero)"
     else:
-        desc_global = f"**tendência estável** (`{variacao_global:.2f}%`)"
+        mudanca = f"variação de {delta / abs(inicio) * 100:+.2f}%"
+    tolerancia = max(abs(inicio) * 0.005, 1e-9)
+    direcao = "estável" if abs(delta) <= tolerancia else ("alta" if delta > 0 else "queda")
+    return (
+        f"Tendência descritiva de **{direcao}**: {mudanca}, "
+        f"comparando a mediana dos primeiros e últimos 20% dos {len(serie)} "
+        "registros válidos (mínimo de 2 por janela). "
+        "Não indica, isoladamente, defeito ou falha iminente."
+    )
 
-    if derivada_media < -0.5:
-        desc_inst = f"**variação negativa** (`{derivada_media:.2f}%` por passo)"
-    elif derivada_media > 0.5:
-        desc_inst = f"**variação positiva** (`{derivada_media:.2f}%` por passo)"
-    else:
-        desc_inst = f"**variação estável** (`{derivada_media:.2f}%` por passo)"
 
-    return f"No período, apresenta {desc_global} com {desc_inst}"
+def calcular_indice_desvio(df: pd.DataFrame, sensor: str) -> float | None:
+    """Índice heurístico 0–100 de DESVIO em relação ao início da série.
 
-def detectar_anomalia(df_filtrado, sensor):
-    """Analisa a tendência de um sensor e retorna seu status individual."""
-    LIMIAR_ANOMALIA = 10.0
-    LIMIAR_ATENCAO = 5.0
-    LIMIAR_CUIDADO = 1.0
-
-    dados = df_filtrado[[sensor]].dropna()
-
-    if len(dados) < 4:
-        return "⚪ Análise de tendência indisponível (poucos dados)"
-
-    inicio = dados[sensor].iloc[:3].mean()
-    fim = dados[sensor].iloc[-3:].mean()
-    variacao_global = abs(((fim - inicio) / inicio) * 100) if inicio != 0 else 0
-
-    derivadas_percentual = (dados[sensor].diff() / dados[sensor].shift(1)) * 100
-    derivada_media = derivadas_percentual.mean()
-
-    if variacao_global > LIMIAR_ANOMALIA or abs(derivada_media) > LIMIAR_ANOMALIA:
-        return "🔴 **Status:** Anomalia detectada!"
-    elif variacao_global > LIMIAR_ATENCAO or abs(derivada_media) > LIMIAR_ATENCAO:
-        return "🟠 **Status:** Atenção (tendência significativa)"
-    elif variacao_global > LIMIAR_CUIDADO or abs(derivada_media) > LIMIAR_CUIDADO:
-        return "🟡 **Status:** Atenção (leve tendência)"
-    else:
-        return "🟢 **Status:** Normal"
-
-def calcular_health_score(risco: float):
-    """Calcula um Health Score de 0 a 100 com base em um único risco."""
-    if not isinstance(risco, (int, float)):
-        return 100.0
-    score = 100 - risco
-    return round(max(0, score), 1)
-
-def analisar_causa_raiz(sensor_com_maior_risco: str):
-    """Busca em uma base de conhecimento as causas e ações para um sensor."""
-    analise = config.BASE_CONHECIMENTO_CAUSA_RAIZ.get(sensor_com_maior_risco)
-    if analise is None:
-        analise = config.BASE_CONHECIMENTO_CAUSA_RAIZ.get('DEFAULT')
-
-    # --- BLOCO DE SEGURANÇA ADICIONADO ---
-    # Garante que, mesmo que o JSON esteja mal configurado, a função nunca retornará None.
-    if analise is None:
-        return {
-            'causas_provaveis': ["- Base de conhecimento não configurada."],
-            'acoes_recomendadas': ["- Verificar o arquivo root_cause_analysis.json."]
-        }
-    return analise
-
-def calcular_impacto_financeiro(riscos: dict):
-    """Calcula o impacto financeiro total e individual por sensor."""
-    impacto_individual = {}
-    impacto_total = 0
-    if not riscos:
-        return impacto_total, impacto_individual
-
-    for sensor, risco in riscos.items():
-        if isinstance(risco, (int, float)) and sensor in config.CUSTOS_OPERACIONAIS:
-            impacto = (risco / 100) * config.CUSTOS_OPERACIONAIS[sensor]
-            impacto_individual[sensor] = impacto
-            impacto_total += impacto
-    
-    return impacto_total, impacto_individual
-
-# def simular_risco_por_regras(df_dados, sensor: str):
-#     """Simula uma pontuação de risco (0-100) com uma lógica de mapeamento direto e realista."""
-#     dados = df_dados[[sensor]].dropna().tail(20)
-#     if len(dados) < 4: return 0
-
-#     inicio = dados[sensor].iloc[:3].mean()
-#     fim = dados[sensor].iloc[-3:].mean()
-#     risco_base = 0
-
-#     # Lógica específica e linear para o sensor de TEMPERATURA
-#     if sensor == 'TEMPERATURA':
-#         variacao_absoluta = abs(fim - inicio)
-#         volatilidade_absoluta = dados[sensor].diff().abs().mean()
-#         risco_calculado = risco_base + (variacao_absoluta * 4.0) + (volatilidade_absoluta * 8.0)
-    
-#     # ### INÍCIO DA LÓGICA DE RISCO UNIFICADA E CORRIGIDA ###
-#     else:
-#         # A base do risco é a variação global, exatamente como na análise de tendência.
-#         variacao_global_percentual = abs(((fim - inicio) / inicio) * 100) if inicio != 0 else 0
-        
-#         # Mapeamento direto da variação para o risco, alinhado com os status de anomalia.
-#         if variacao_global_percentual > 5.0:  # Nível Anomalia
-#             # Mapeia linearmente a variação de 10-20% para um risco de 75-100%
-#             fator_agressividade = 5.2 if sensor == 'CORRENTE' else 1.0
-#             risco_calculado = 75 + (variacao_global_percentual - 10) * 2.5 * fator_agressividade
-#         elif variacao_global_percentual > 5.0:  # Nível Atenção Significativa
-#             # Mapeia linearmente a variação de 5-10% para um risco de 50-75%
-#             risco_calculado = 50 + (variacao_global_percentual - 5) * 15.0
-#         elif variacao_global_percentual > 1.0:  # Nível Leve Tendência
-#             # Mapeia linearmente a variação de 1-5% para um risco de 20-50%
-#             risco_calculado = 20 + (variacao_global_percentual - 1) * 7.5
-#         else:  # Nível Estável
-#             risco_calculado = risco_base + variacao_global_percentual * 5.0
-
-#         # Adiciona uma pequena penalidade pela volatilidade (ruído)
-#         volatilidade_media_percentual = abs((dados[sensor].diff() / dados[sensor].shift(1)) * 100).mean()
-#         penalidade_volatilidade = volatilidade_media_percentual * 0.5
-#         risco_calculado += penalidade_volatilidade
-#     # ### FIM DA LÓGICA DE RISCO UNIFICADA ###
-
-#     risco_final = min(risco_calculado, 100.0)
-    
-#     return round(risco_final, 1)
-def _calculate_tendency(dados: pd.DataFrame, sensor: str) -> tuple[float, float]:
+    Usa os primeiros 60% dos registros como referência temporária, e os últimos
+    20% como janela recente. Não há calibração probabilística ou limites de processo.
+    A referência histórica NÃO substitui uma faixa operacional homologada.
     """
-    Função central e privada para o cálculo numérico da tendência.
-    Retorna apenas os valores brutos: (variacao_global, derivada_media).
-    """
-    if len(dados) < 4:
-        return 0.0, 0.0
+    serie = _serie_ordenada(df, sensor)
+    n = len(serie)
+    if n < MIN_AMOSTRAS_DESVIO:
+        return None
+    base = serie.iloc[:max(5, math.ceil(0.6 * n))]
+    atual = serie.iloc[-max(3, math.ceil(0.2 * n)):]
+    mediana = float(base.median())
+    mad = float((base - mediana).abs().median())
+    q25, q75 = np.percentile(base, [25, 75])
+    escala = max(1.4826 * mad, (q75 - q25) / 1.349, abs(mediana) * 0.005, 1e-6)
+    z_robusto = abs(float(atual.median()) - mediana) / escala
+    return round(min(100.0, max(0.0, (z_robusto - 1.0) * 20.0)), 1)
 
-    inicio = dados[sensor].iloc[:3].mean()
-    fim = dados[sensor].iloc[-3:].mean()
-    
-    variacao_global = ((fim - inicio) / inicio) * 100 if inicio != 0 else 0.0
-    derivada_media = (dados[sensor].diff() / dados[sensor].shift(1) * 100).mean()
-    
-    return variacao_global, derivada_media
 
-def simular_risco_por_regras(df_dados, sensor: str):
-    """
-    Calcula o Potencial de Falha com base em bandas de variação de tendência precisas.
-    """
-    dados = df_dados[[sensor]].dropna()
-    if len(dados) < 4: return 5.0
+def simular_risco_por_regras(df_dados: pd.DataFrame, sensor: str) -> float | None:
+    """Compatibilidade: devolve índice de desvio, NÃO probabilidade de falha."""
+    return calcular_indice_desvio(df_dados, sensor)
 
-    variacao_global, _ = _calculate_tendency(dados, sensor)
-    
-    if sensor == 'TEMPERATURA':
-        inicio = dados[sensor].iloc[:3].mean()
-        fim = dados[sensor].iloc[-3:].mean()
-        variacao_absoluta = abs(fim - inicio)
-        if variacao_absoluta > 5: return 85.0
-        elif variacao_absoluta >= 4: return 65.0
-        elif variacao_absoluta >= 3: return 40.0
-        elif variacao_absoluta > 1: return 25.0
-        else: return 10.0
-    else:
-        variacao_abs = abs(variacao_global)
-        
-        if variacao_abs > 1.0:
-            return 85.0  # Anomalia
-        elif 5.0 <= variacao_abs <= 1.0:
-            return 65.0  # Risco Grave
-        elif 8.0 <= variacao_abs < 5.0:
-            return 40.0  # Risco Moderado
-        elif 10.0 < variacao_abs < 8.0:
-            return 25.0  # Risco Leve
-        else: # <= 1.0
-            return 0.0
+
+def detectar_anomalia(df_filtrado: pd.DataFrame, sensor: str) -> str:
+    indice = calcular_indice_desvio(df_filtrado, sensor)
+    if indice is None:
+        return "⚪ **Dados insuficientes** para classificar desvio (mínimo: 8)."
+    if indice >= 70:
+        return f"🔴 **Desvio estatístico elevado** (índice {indice:.1f}/100)."
+    if indice >= 40:
+        return f"🟠 **Desvio estatístico relevante** (índice {indice:.1f}/100)."
+    if indice >= 15:
+        return f"🟡 **Variação a acompanhar** (índice {indice:.1f}/100)."
+    return f"🟢 **Sem desvio relevante por esta heurística** ({indice:.1f}/100)."
+
+
+def calcular_health_score(indice_desvio: float | None) -> float | None:
+    """Compatibilidade: índice complementar de estabilidade, NÃO saúde do equipamento."""
+    if indice_desvio is None or not math.isfinite(float(indice_desvio)):
+        return None
+    return round(100 - min(100.0, max(0.0, float(indice_desvio))), 1)
+
+
+def analisar_causa_raiz(sensor_com_maior_risco: str) -> dict:
+    """Retorna hipóteses técnicas gerais; não conclui causa raiz automaticamente."""
+    base = config.BASE_CONHECIMENTO_CAUSA_RAIZ
+    return base.get(sensor_com_maior_risco) or base.get("DEFAULT") or {
+        "causas_provaveis": ["Base de hipóteses não configurada."],
+        "acoes_recomendadas": ["Solicitar avaliação da equipe técnica."],
+    }
+
+
+def calcular_impacto_financeiro(riscos: dict) -> tuple[float, dict]:
+    """Cenário ilustrativo legado, NÃO uma estimativa validada de perdas.
+
+    Mantido apenas para compatibilidade: não chamar no painel operacional até
+    existirem dados de custos, eventos de falha e metodologia aprovada.
+    """
+    estimativas = {
+        sensor: round(float(valor) / 100 * config.CUSTOS_OPERACIONAIS[sensor], 2)
+        for sensor, valor in riscos.items()
+        if sensor in config.CUSTOS_OPERACIONAIS
+        and isinstance(valor, (int, float))
+        and math.isfinite(float(valor))
+    }
+    return round(sum(estimativas.values()), 2), estimativas
