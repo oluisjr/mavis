@@ -81,6 +81,25 @@ def _referencia_historica(tabela: pd.DataFrame, coluna: str) -> tuple[pd.Series,
     return base, spread, quantidade
 
 
+def _persistencia_contextual(
+    z_assinado: pd.Series, elegivel: pd.Series, tabela: pd.DataFrame,
+    sentido: str, tamanho: int = 4
+) -> pd.Series:
+    """Marca pequenas mudanças repetidas em soldas comparáveis, sem usar dados futuros."""
+    retorno = pd.Series(False, index=tabela.index)
+    for _, indices in tabela.groupby("contexto", sort=False).indices.items():
+        pos = list(indices)
+        sequencia = z_assinado.iloc[pos].where(elegivel.iloc[pos])
+        if sentido == "both":
+            positivas = sequencia.ge(1.8).rolling(tamanho, min_periods=tamanho).sum().eq(tamanho)
+            negativas = sequencia.le(-1.8).rolling(tamanho, min_periods=tamanho).sum().eq(tamanho)
+            marcadas = positivas | negativas
+        else:
+            marcadas = sequencia.ge(2.0).rolling(tamanho, min_periods=tamanho).sum().eq(tamanho)
+        retorno.iloc[pos] = marcadas.fillna(False).to_numpy()
+    return retorno
+
+
 def analisar_soldas(caracteristicas: pd.DataFrame, sensores: tuple[str, ...] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Retorna painel de soldas e evidências por sensor/atributo (sem probabilidades).
 
@@ -109,11 +128,11 @@ def analisar_soldas(caracteristicas: pd.DataFrame, sensores: tuple[str, ...] | N
             # Não assumir precisão infinita: evita alarmes por ruído de quantização.
             escala = dispersao.clip(lower=quantum / 2)
             valor = pd.to_numeric(caracteristicas[coluna], errors="coerce")
-            z = (valor - historico) / escala
+            z_assinado = (valor - historico) / escala
             if sentido == "both":
-                z = z.abs()
+                z = z_assinado.abs()
             else:
-                z = z.clip(lower=0.0)
+                z = z_assinado.clip(lower=0.0)
             # Leituras sem referência NÃO equivalem a estado normal.
             elegivel = valido & quant.ge(MIN_REFERENCE) & valor.notna() & historico.notna()
             painel.loc[elegivel, "n_referencias"] += 1
@@ -129,6 +148,26 @@ def analisar_soldas(caracteristicas: pd.DataFrame, sensores: tuple[str, ...] | N
                     "contexto": caracteristicas.at[idx, "contexto"],
                     "sensor": sensor,
                     "evidencia": descricao,
+                    "magnitude_robusta": round(potencia, 2),
+                    "valor_observado": float(valor.iloc[idx]),
+                    "referencia_anterior": float(historico.iloc[idx]),
+                    "soldas_referencia": int(quant.iloc[idx]),
+                })
+
+            # Quatro desvios pequenos e consecutivos no MESMO contexto merecem
+            # investigação, mesmo que cada evento isolado fique abaixo do limiar.
+            persistentes = _persistencia_contextual(z_assinado, elegivel, caracteristicas, sentido)
+            novos = persistentes & z.lt(EVIDENCE_THRESHOLD)
+            for idx in np.flatnonzero(novos.fillna(False).to_numpy()):
+                potencia = float(z.iloc[idx])
+                painel.at[idx, "n_evidencias"] += 1
+                painel.at[idx, "forca_maxima"] = max(float(painel.at[idx, "forca_maxima"]), potencia)
+                alertas.append({
+                    "WELDNº": caracteristicas.at[idx, "WELDNº"],
+                    "DATAHORA": caracteristicas.at[idx, "DATAHORA"],
+                    "contexto": caracteristicas.at[idx, "contexto"],
+                    "sensor": sensor,
+                    "evidencia": f"{descricao}: alteração persistente em 4 soldas comparáveis",
                     "magnitude_robusta": round(potencia, 2),
                     "valor_observado": float(valor.iloc[idx]),
                     "referencia_anterior": float(historico.iloc[idx]),

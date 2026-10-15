@@ -120,3 +120,13 @@ def test_historico_123_tem_multiplos_pontos_por_solda():
         "Variação a investigar", "Investigação prioritária",
         "Qualidade de dados: pontos duplicados",
     })
+
+
+def test_pequeno_desvio_persistente_aparece_no_painel():
+    pontos = _curvas(total=28)
+    mask = pontos["WELDNº"].ge(25)
+    pontos.loc[mask, "CORRENTE"] += .1
+    car = weld_analysis.caracteristicas_por_solda(pontos, ("CORRENTE",))
+    painel, alertas = weld_analysis.analisar_soldas(car, ("CORRENTE",))
+    assert painel.iloc[-1]["situacao"] == "Variação a investigar"
+    assert any("persistente" in texto for texto in alertas["evidencia"].tolist())
