@@ -20,7 +20,7 @@ if dados.empty:
 if filtros.get("receita_fmt") == "Todas":
     st.warning("Dados combinados de diferentes receitas: gráficos descritivos, sem diagnóstico de anomalia.")
 
-st.caption("As tendências e os índices abaixo usam os mesmos registros filtrados apresentados nos gráficos.")
+st.caption("Os indicadores usam as mesmas médias diárias filtradas dos gráficos. São sinais de triagem: podem ocultar variações entre soldas ou dentro delas. Para investigar, abra Análise por Solda.")
 for sensor, nome in config.NOMES_SENSORES.items():
     if sensor in config.SENSORES_INDISPONIVEIS:
         st.info(f"{nome}: medição atualmente indisponível por configuração operacional.")
