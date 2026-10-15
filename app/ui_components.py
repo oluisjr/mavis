@@ -42,6 +42,8 @@ def render_sidebar(df_total_completo: pd.DataFrame, page_name: str):
             padrao = "123"
         if padrao not in receitas:
             padrao = todas_receitas[0] if todas_receitas else "Todas"
+        if filtros.get("receita_fmt") != padrao:
+            filtros["receita_fmt"] = padrao
         tem_medidas = any(sensor in df_total_completo for sensor in config.NOMES_SENSORES)
         with st.form("filtros_mavis"):
             receita = st.selectbox("Receita / programa", receitas, index=receitas.index(padrao))

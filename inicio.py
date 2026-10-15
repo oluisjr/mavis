@@ -12,7 +12,7 @@ ui_components.render_mavis_header()
 def _senhas():
     try:
         valor = st.secrets.get("VALID_PASSWORDS", "")
-    except (OSError, FileNotFoundError):
+    except Exception:  # StreamlitSecretNotFoundError quando não há secrets.toml
         valor = ""
     if isinstance(valor, (list, tuple)):
         candidatas = [str(item) for item in valor]

@@ -144,7 +144,7 @@ def _agregar_raw(dados: pd.DataFrame) -> dict[str, pd.DataFrame]:
     limpo = _normalizar_medidas(dados)
     limpo = limpo.assign(
         _dia=limpo["DATA"].dt.floor("D"),
-        _semana=limpo["DATA"].dt.to_period("W-MON").dt.start_time,
+        _semana=limpo["DATA"].dt.to_period("W-SUN").dt.start_time,
         _mes=limpo["DATA"].dt.to_period("M").dt.start_time,
         _ano=limpo["DATA"].dt.to_period("Y").dt.start_time,
     )
