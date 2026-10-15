@@ -54,7 +54,7 @@ mensal = series["mensal"]
 base = diario if not diario.empty else mensal
 st.caption(
     "Resultados descritivos baseados nos registros existentes. "
-    "Índice de desvio não é probabilidade de falha nem indicador certificado de saúde do equipamento."
+    "O índice é uma triagem exploratória das médias do período; não é probabilidade de falha nem avaliação certificada do equipamento."
 )
 if base.empty:
     st.warning("Não há dados para os filtros selecionados.")

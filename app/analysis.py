@@ -9,6 +9,7 @@ import math
 import numpy as np
 import pandas as pd
 from . import config
+from .daily_metrics import metricas
 
 MIN_AMOSTRAS_TENDENCIA = 4
 MIN_AMOSTRAS_DESVIO = 8
@@ -57,25 +58,14 @@ def analisar_tendencia(dados: pd.DataFrame, eixo_y: str, sensor: str | None = No
     )
 
 
-def calcular_indice_desvio(df: pd.DataFrame, sensor: str) -> float | None:
-    """Índice heurístico 0–100 de DESVIO em relação ao início da série.
+def resumir_desvio_agregado(df: pd.DataFrame, sensor: str) -> dict:
+    """Triagem de médias por período. Os resultados não diagnosticam falhas."""
+    return metricas(_serie_ordenada(df, sensor))
 
-    Usa os primeiros 60% dos registros como referência temporária, e os últimos
-    20% como janela recente. Não há calibração probabilística ou limites de processo.
-    A referência histórica NÃO substitui uma faixa operacional homologada.
-    """
-    serie = _serie_ordenada(df, sensor)
-    n = len(serie)
-    if n < MIN_AMOSTRAS_DESVIO:
-        return None
-    base = serie.iloc[:max(5, math.ceil(0.6 * n))]
-    atual = serie.iloc[-max(3, math.ceil(0.2 * n)):]
-    mediana = float(base.median())
-    mad = float((base - mediana).abs().median())
-    q25, q75 = np.percentile(base, [25, 75])
-    escala = max(1.4826 * mad, (q75 - q25) / 1.349, abs(mediana) * 0.005, 1e-6)
-    z_robusto = abs(float(atual.median()) - mediana) / escala
-    return round(min(100.0, max(0.0, (z_robusto - 1.0) * 20.0)), 1)
+
+def calcular_indice_desvio(df: pd.DataFrame, sensor: str) -> float | None:
+    """Índice exploratório para priorização de investigação, não risco físico."""
+    return resumir_desvio_agregado(df, sensor)["indice"]
 
 
 def simular_risco_por_regras(df_dados: pd.DataFrame, sensor: str) -> float | None:
@@ -84,16 +74,25 @@ def simular_risco_por_regras(df_dados: pd.DataFrame, sensor: str) -> float | Non
 
 
 def detectar_anomalia(df_filtrado: pd.DataFrame, sensor: str) -> str:
-    indice = calcular_indice_desvio(df_filtrado, sensor)
+    analise = resumir_desvio_agregado(df_filtrado, sensor)
+    indice = analise["indice"]
     if indice is None:
-        return "⚪ **Dados insuficientes** para classificar desvio (mínimo: 8)."
-    if indice >= 70:
-        return f"🔴 **Desvio estatístico elevado** (índice {indice:.1f}/100)."
-    if indice >= 40:
-        return f"🟠 **Desvio estatístico relevante** (índice {indice:.1f}/100)."
-    if indice >= 15:
-        return f"🟡 **Variação a acompanhar** (índice {indice:.1f}/100)."
-    return f"🟢 **Sem desvio relevante por esta heurística** ({indice:.1f}/100)."
+        return "⚪ **Avaliação inconclusiva: dados insuficientes ou referência inválida.** " + analise["motivo"]
+    detalhes = (
+        f"tendência {analise['mudanca']:+.2f}%; "
+        f"excursão máxima {analise['excursao']:.2f}%; "
+        f"maior salto entre registros {analise['salto']:.2f}%"
+    )
+    if analise["estado"] == "relevante":
+        return (f"🔴 **Mudança relevante no histórico agregado. Investigar.** "
+                f"Índice exploratório: {indice:.1f}/100; {detalhes}. "
+                "Não é diagnóstico de falha.")
+    if analise["estado"] == "atencao":
+        return (f"🟠 **Variação a investigar no histórico agregado.** "
+                f"Índice exploratório: {indice:.1f}/100; {detalhes}.")
+    return (f"⚪ **Sem gatilho nesta análise agregada** "
+            f"(índice exploratório {indice:.1f}/100; {detalhes}). "
+            "**Não significa que a operação esteja normal, nem exclui falha entre soldas.**")
 
 
 def calcular_health_score(indice_desvio: float | None) -> float | None:
