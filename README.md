@@ -1,40 +1,61 @@
-# MAVIS - Dashboard de Monitoramento
+# MAVIS | Monitoramento e Análise de Variáveis Industriais de Soldagem
 
-Dashboard para Monitoramento, Análise e Visualização de Indicadores de Solda.
+Dashboard de dados históricos de processo implementado em Python, Streamlit e Pandas.
 
-## Descrição
+## O que esta versão faz
 
-Esta aplicação Streamlit fornece uma análise detalhada de dados de sensores de um processo de solda, incluindo visualizações diárias, semanais, mensais e anuais. Além disso, utiliza modelos de inteligência artificial (simulados) para prever riscos, calcular o impacto financeiro e sugerir análises de causa raiz.
+- Analisa séries de velocidade, corrente, pressão de solda, pressão do martelador e temperatura, quando disponíveis.
+- Permite selecionar receita, período e, se houver leituras brutas, códigos de entrada e saída.
+- Recalcula agregações **após os filtros** quando há dados de origem adequados; sem essa possibilidade, limita a interpretação e informa a restrição.
+- Exibe tendências descritivas e um **índice heurístico de desvio**, de 0 a 100, baseado em diferenças robustas contra uma referência histórica temporária.
+- Sugere hipóteses técnicas a partir de uma base de conhecimento em JSON. A origem das hipóteses não é um diagnóstico automatizado.
 
-## Instalação e Execução
+**Importante:** o índice de desvio **não é probabilidade de falha**, nem um Health Score validado, e não autoriza decisões automáticas de parada, produção, segurança ou manutenção. Não substitui limites técnicos por receita homologados pela engenharia. Sem histórico rotulado de falhas e sem avaliação prospectiva, o sistema não faz predição comprovada.
 
-1.  **Clone o repositório:**
-    ```bash
-    git clone <url-do-seu-repositorio>
-    cd mavis_dashboard
-    ```
+## Como funciona a análise
 
-2.  **Crie e ative um ambiente virtual (recomendado):**
-    ```bash
-    python -m venv venv
-    # Windows
-    venv\Scripts\activate
-    # macOS/Linux
-    source venv/bin/activate
-    ```
+1. Descarta registros com datas inválidas e organiza as séries temporalmente.
+2. A tendência compara medianas do início e do fim (20% dos registros de cada ponta, mínimo de 2).
+3. Com ao menos 8 registros, usa os primeiros 60% para determinar mediana e dispersão robusta (MAD e IQR), e os últimos 20% para obter o deslocamento da mediana.
+4. Converte o deslocamento padronizado para um índice descritivo de 0 a 100. Limiares visuais são heurísticos, não tolerâncias físicas ou probabilidades.
+5. Se a amostra é insuficiente, mostra **indisponível**, em vez de assumir risco zero ou saúde máxima.
+6. Para avaliar causas e intervenções, consulte equipe de manutenção/engenharia.
 
-3.  **Instale as dependências:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+A escala de conversão de leituras originais é configurada em `app/config.py` e deve ser conferida contra o sistema de aquisição (unidades de engenharia).
 
-4.  **Configure as variáveis de ambiente:**
-    - Renomeie o arquivo `.env.example` para `.env`.
-    - Edite o arquivo `.env` e adicione os caminhos ou URLs para seus arquivos de dados (`caminho_excel`, `estatistica`).
+## Execução
 
-5.  **Execute a aplicação Streamlit:**
-    ```bash
-    streamlit run main.py
-    ```
+Requer Python 3.11+ e acesso autorizado à base de dados:
 
-A aplicação estará disponível em seu navegador no endereço `http://localhost:8501`.
+```bash
+python -m venv .venv
+# ative seu ambiente virtual e instale:
+pip install -r requirements.txt
+streamlit run inicio.py
+```
+
+Defina em `.env` (local) ou no painel de Secrets do Streamlit:
+
+```text
+VALID_PASSWORDS=uma-senha-forte
+caminho_excel=/caminho/privado/dados_resumidos_gerado.xlsx
+estatistica=/caminho/privado/estatisticas_por_programa.xlsx
+SENSORES_INDISPONIVEIS=TEMPERATURA
+```
+
+Não publique o arquivo `.env` nem os dados industriais. `caminho_excel` também aceita URL HTTP(S), mas **a URL deve ter controle de acesso**. O carregador exige a aba `Dados Completos`, com `DATA` e, idealmente, `PROGRAM_Nº` e colunas dos sensores. Se essas colunas estiverem presentes, calcula séries diárias/semanais/mensais/anuais a partir da base bruta. Se não estiverem, tenta as abas históricas de médias: `Médias Diárias`, `Médias Semanais`, `Médias Mensais`, `Médias Anuais` ou as abas específicas da receita.
+
+## Testes
+
+```bash
+pip install pytest
+python -m pytest -q
+```
+
+## Proteção de dados e acesso
+
+O repositório já possuía arquivos em `data/` versionados, apesar do `.gitignore`. **Ignorar um diretório não remove o que já foi publicado, nem apaga o histórico Git.** Se forem dados corporativos, restrinja o repositório e trate a exposição com os responsáveis pela informação. Evite publicar históricos de produção em URLs abertas. A autenticação por senha compartilhada é provisória; para implantação corporativa, use autenticação de identidade individual, autorização por perfil, HTTPS e trilhas de auditoria.
+
+## Escopo de validação
+
+Os testes automatizados verificam a lógica sobre dados sintéticos. Antes de uso operacional, confronte médias e séries com o processo de aquisição, valide escala/unidades, limites por receita, períodos de calibração, falhas rotuladas, variações normais de processo, amostras perdidas e alarmes falsos. A disponibilidade física do pirômetro deve ser confirmada antes de removê-lo de `SENSORES_INDISPONIVEIS`.

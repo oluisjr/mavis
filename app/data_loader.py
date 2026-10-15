@@ -1,116 +1,215 @@
-import pandas as pd
-import streamlit as st
-import requests
+"""Ingestão, saneamento e filtragem consistente dos dados industriais."""
+from __future__ import annotations
+
 from io import BytesIO
 from pathlib import Path
+import pandas as pd
+import numpy as np
+import requests
+import streamlit as st
 from . import config
 
-@st.cache_data(show_spinner="Carregando dados iniciais...")
-def carregar_dados_iniciais():
-    """Carrega a planilha 'Dados Completos' a partir de uma URL ou caminho local."""
+COLUNAS_DATA = {"diario": "DATA", "semanal": "SEMANA", "mensal": "MES", "anual": "ANO"}
+SENSORES = tuple(config.NOMES_SENSORES)
+FILTROS_CODIGOS = {"entry_code": "code ENTRY", "exit_code": "code EXIT"}
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def _baixar_excel(url: str) -> bytes:
+    resposta = requests.get(url, timeout=(10, 60))
+    resposta.raise_for_status()
+    return resposta.content
+
+
+def _abrir_excel(origem: str) -> pd.ExcelFile:
+    if origem.startswith(("https://", "http://")):
+        return pd.ExcelFile(BytesIO(_baixar_excel(origem)), engine="openpyxl")
+    arquivo = Path(origem).expanduser()
+    if not arquivo.is_file():
+        raise FileNotFoundError(f"Planilha de dados não encontrada: {arquivo}")
+    return pd.ExcelFile(arquivo, engine="openpyxl")
+
+
+def _sanear_base(df: pd.DataFrame) -> pd.DataFrame:
+    dados = df.copy()
+    if "DATA" not in dados:
+        raise ValueError("A aba 'Dados Completos' não possui a coluna DATA.")
+    dados["DATA"] = pd.to_datetime(dados["DATA"], errors="coerce")
+    dados = dados.dropna(subset=["DATA"]).sort_values("DATA", kind="stable")
+    if "PROGRAM_Nº" in dados:
+        dados["PROGRAM_Nº"] = dados["PROGRAM_Nº"].astype("string").str.strip().str.replace(
+            r"\.0$", "", regex=True
+        )
+    for codigo in FILTROS_CODIGOS.values():
+        if codigo in dados:
+            dados[codigo] = dados[codigo].astype("string").str.strip()
+    return dados.reset_index(drop=True)
+
+
+@st.cache_data(ttl=1800, show_spinner="Carregando histórico de produção...")
+def carregar_dados_iniciais() -> pd.DataFrame:
     try:
-        if not config.CAMINHO_EXCEL_URL:
-            st.error("O caminho do arquivo Excel não foi definido no .env (caminho_excel).")
-            return pd.DataFrame()
-
-        # Detecta se é URL (http/https) ou arquivo local
-        if config.CAMINHO_EXCEL_URL.startswith("http://") or config.CAMINHO_EXCEL_URL.startswith("https://"):
-            response = requests.get(config.CAMINHO_EXCEL_URL)
-            response.raise_for_status()
-            excel_content = BytesIO(response.content)
-            df = pd.read_excel(excel_content, sheet_name="Dados Completos")
-        else:
-            caminho_excel = Path(config.CAMINHO_EXCEL_URL).expanduser().resolve()
-            if not caminho_excel.exists():
-                st.error(f"Arquivo não encontrado: {caminho_excel}")
-                return pd.DataFrame()
-            df = pd.read_excel(caminho_excel, sheet_name="Dados Completos")
-
-        # Tratamento dos dados
-        df["DATA"] = pd.to_datetime(df["DATA"], errors="coerce")
-        df["PROGRAM_Nº"] = df["PROGRAM_Nº"].astype(str).str.strip()
-        return df
-
-    except Exception as e:
-        st.error(f"Erro ao carregar o arquivo Excel inicial: {e}")
+        with _abrir_excel(config.CAMINHO_EXCEL_URL) as excel:
+            if "Dados Completos" not in excel.sheet_names:
+                raise ValueError("A aba 'Dados Completos' não existe na planilha.")
+            return _sanear_base(pd.read_excel(excel, sheet_name="Dados Completos"))
+    except (OSError, ValueError, requests.RequestException) as erro:
+        st.error(f"Não foi possível carregar o histórico: {erro}")
         return pd.DataFrame()
 
-@st.cache_data(show_spinner="Carregando dados da receita...")
-def carregar_dados_por_receita(receita_selecionada):
-    """Carrega os dados diários, semanais, mensais e anuais para uma receita específica."""
-    messages = []
-    empty_dfs = (pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
 
+def _normalizar_medidas(df: pd.DataFrame) -> pd.DataFrame:
+    dados = df.copy()
+    for sensor, fator in config.FATORES_ESCALA.items():
+        if sensor in dados:
+            dados[sensor] = pd.to_numeric(dados[sensor], errors="coerce").replace(
+                [np.inf, -np.inf], np.nan
+            ) / fator
+    return dados
+
+
+def _normalizar_agregado(df: pd.DataFrame, granularidade: str) -> pd.DataFrame:
+    if df.empty:
+        return df
+    dados = df.copy()
+    coluna = COLUNAS_DATA[granularidade]
+    if coluna not in dados:
+        return pd.DataFrame()
+    if granularidade == "anual":
+        anos = dados[coluna].astype("string").str.extract(r"(\d{4})", expand=False)
+        dados[coluna] = pd.to_datetime(anos, format="%Y", errors="coerce")
+    else:
+        dados[coluna] = pd.to_datetime(dados[coluna], errors="coerce", utc=True).dt.tz_localize(None)
+    dados = dados.dropna(subset=[coluna]).sort_values(coluna, kind="stable")
+    return _normalizar_medidas(dados)
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def carregar_dados_por_receita(receita_selecionada: str):
+    """Compatibilidade com telas antigas: histórico, diário, semanal, mensal, anual."""
+    vazio = pd.DataFrame()
+    registros = carregar_dados_iniciais()
+    avisos = []
+    if registros.empty:
+        return (vazio, vazio, vazio, vazio, vazio), [("error", "Histórico indisponível.")]
+    receita = str(receita_selecionada).strip()
+    if receita in ("", "Todas"):
+        planilhas = ("Médias Diárias", "Médias Semanais", "Médias Mensais", "Médias Anuais")
+    else:
+        planilhas = (receita, f"{receita} - Semanal", f"{receita} - Mensal", f"{receita} - Anual")
+    saidas = []
     try:
-        df_total = pd.read_excel(config.CAMINHO_EXCEL_URL, sheet_name='Dados Completos')
-        df_total['DATA'] = pd.to_datetime(df_total['DATA'], errors='coerce')
+        with _abrir_excel(config.CAMINHO_EXCEL_URL) as excel:
+            nomes = {str(aba).strip().casefold(): aba for aba in excel.sheet_names}
+            for granularidade, nome in zip(COLUNAS_DATA, planilhas):
+                nome_real = nomes.get(nome.casefold())
+                if nome_real is None:
+                    avisos.append(("warning", f"Aba '{nome}' não encontrada."))
+                    saidas.append(vazio)
+                else:
+                    saidas.append(_normalizar_agregado(pd.read_excel(excel, sheet_name=nome_real), granularidade))
+    except (OSError, ValueError, requests.RequestException) as erro:
+        avisos.append(("error", f"Falha ao ler a planilha: {erro}"))
+        saidas = [vazio] * 4
+    return (registros, *saidas), avisos
 
-        if config.CAMINHO_EXCEL_URL is None:
-            messages.append(('error', "O caminho do arquivo Excel está indefinido (None)."))
-            return empty_dfs, messages
-            
-        xls = pd.ExcelFile(config.CAMINHO_EXCEL_URL)
-        sheet_names_from_file = {str(sheet).strip().lower(): str(sheet) for sheet in xls.sheet_names}
 
-        if receita_selecionada == 'Todas':
-            aba_diario, aba_semanal, aba_mensal, aba_anual = 'Médias Diárias', 'Médias Semanais', 'Médias Mensais', 'Médias Anuais'
-        else:
-            receita_str = str(receita_selecionada).strip()
-            aba_diario = f"{receita_str}"
-            aba_semanal = f"{receita_str} - Semanal"
-            aba_mensal = f"{receita_str} - Mensal"
-            aba_anual = f"{receita_str} - Anual"
+def _filtrar_raw(registros: pd.DataFrame, filtros: dict) -> pd.DataFrame:
+    dados = registros.copy()
+    receita = str(filtros.get("receita_fmt") or "Todas")
+    if receita != "Todas" and "PROGRAM_Nº" in dados:
+        dados = dados.loc[dados["PROGRAM_Nº"].eq(receita).fillna(False)]
+    for filtro, coluna in FILTROS_CODIGOS.items():
+        escolhido = str(filtros.get(filtro) or "Todos")
+        if escolhido != "Todos" and coluna in dados:
+            dados = dados.loc[dados[coluna].eq(escolhido).fillna(False)]
+    if filtros.get("anos"):
+        dados = dados[dados["DATA"].dt.year.isin(filtros["anos"])]
+    if filtros.get("meses"):
+        dados = dados[dados["DATA"].dt.month.isin(filtros["meses"])]
+    if filtros.get("semanas"):
+        dados = dados[dados["DATA"].dt.isocalendar().week.isin(filtros["semanas"])]
+    if filtros.get("dias"):
+        # Trata dias como datas completas (AAAA-MM-DD), evitando agregar dia 1 de meses diferentes.
+        dias = pd.to_datetime(filtros["dias"], errors="coerce")
+        dados = dados[dados["DATA"].dt.normalize().isin(dias)]
+    return dados
 
-        def carregar_aba_segura(nome_aba_procurada):
-            nome_limpo = nome_aba_procurada.strip().lower()
-            if nome_limpo in sheet_names_from_file:
-                nome_original_da_aba = sheet_names_from_file[nome_limpo]
-                return pd.read_excel(config.CAMINHO_EXCEL_URL, sheet_name=nome_original_da_aba)
-            else:
-                messages.append(('toast', f"Aviso: Planilha '{nome_aba_procurada}' não encontrada."))
-                return pd.DataFrame()
 
-        df_diario = carregar_aba_segura(aba_diario)
-        df_semanal = carregar_aba_segura(aba_semanal)
-        df_mensal = carregar_aba_segura(aba_mensal)
-        df_anual = carregar_aba_segura(aba_anual)
+def _agregar_raw(dados: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Agrega leituras após TODOS os filtros, mantendo a mesma população de referência."""
+    medidas = [nome for nome in SENSORES if nome in dados]
+    if not medidas or dados.empty:
+        return {nome: pd.DataFrame() for nome in COLUNAS_DATA}
+    limpo = _normalizar_medidas(dados)
+    limpo = limpo.assign(
+        _dia=limpo["DATA"].dt.floor("D"),
+        _semana=limpo["DATA"].dt.to_period("W-SUN").dt.start_time,
+        _mes=limpo["DATA"].dt.to_period("M").dt.start_time,
+        _ano=limpo["DATA"].dt.to_period("Y").dt.start_time,
+    )
+    chaves = {"diario": "_dia", "semanal": "_semana", "mensal": "_mes", "anual": "_ano"}
+    retorno = {}
+    for nivel, chave in chaves.items():
+        agregado = limpo.groupby(chave, dropna=True)[medidas].mean().reset_index()
+        retorno[nivel] = agregado.rename(columns={chave: COLUNAS_DATA[nivel]})
+    return retorno
 
-    except FileNotFoundError:
-        messages.append(('error', f"Arquivo Excel não encontrado no caminho: {config.CAMINHO_EXCEL_URL}"))
-        return empty_dfs, messages
-    except Exception as e:
-        messages.append(('error', f"Erro inesperado ao ler o arquivo Excel: {e}"))
-        return empty_dfs, messages
 
-    # Processamento e normalização
-    if not df_diario.empty: df_diario['DATA'] = pd.to_datetime(df_diario['DATA'], errors='coerce')
-    if not df_semanal.empty: df_semanal['SEMANA'] = pd.to_datetime(df_semanal['SEMANA'].astype(str).str[:10], errors='coerce').dt.tz_localize(None)
-    if not df_mensal.empty: df_mensal['MES'] = pd.to_datetime(df_mensal['MES'], errors='coerce')
-    if not df_anual.empty: df_anual['ANO'] = pd.to_datetime(df_anual['ANO'], format='%Y', errors='coerce')
+def obter_visoes_filtradas(filtros: dict) -> tuple[dict[str, pd.DataFrame], list[str]]:
+    """Preferir histórico detalhado. Recusar filtros que não existam em médias pré-calculadas."""
+    registros = carregar_dados_iniciais()
+    vazios = {nome: pd.DataFrame() for nome in COLUNAS_DATA}
+    if registros.empty:
+        return vazios, ["Histórico de origem indisponível."]
+    if set(SENSORES).intersection(registros.columns):
+        ausentes = [nome for nome in SENSORES if nome not in registros]
+        avisos = [f"Sem coluna de origem para: {', '.join(ausentes)}."] if ausentes else []
+        for filtro, coluna in FILTROS_CODIGOS.items():
+            if filtros.get(filtro, "Todos") != "Todos" and coluna not in registros:
+                return vazios, [f"Filtro {coluna} não existe na origem. Não foram gerados indicadores."]
+        return _agregar_raw(_filtrar_raw(registros, filtros)), avisos
 
-    for df in [df_diario, df_semanal, df_mensal, df_anual]:
-        if not df.empty:
-            if 'VELOCIDADE' in df.columns: df['VELOCIDADE'] = df['VELOCIDADE'].astype(int) / 100
-            if 'CORRENTE' in df.columns: df['CORRENTE'] = df['CORRENTE'].astype(int) / 10
-            if 'PRESSAO_SOLDA' in df.columns: df['PRESSAO_SOLDA'] = df['PRESSAO_SOLDA'].astype(int) / 10
-            if 'TEMPERATURA' in df.columns: df['TEMPERATURA'] = (df['TEMPERATURA'].astype(int) / 10).round().astype(int)
-            if 'PRESSAO_MARTELADOR' in df.columns: df['PRESSAO_MARTELADOR'] = df['PRESSAO_MARTELADOR'].astype(int) / 10
+    if any(filtros.get(k, "Todos") != "Todos" for k in FILTROS_CODIGOS):
+        return vazios, ["Filtros de entrada/saída não podem ser aplicados: as médias não possuem essas dimensões."]
+    (total, diario, semanal, mensal, anual), mensagens = carregar_dados_por_receita(filtros.get("receita_fmt", "Todas"))
+    avisos = [mensagem for _, mensagem in mensagens]
+    series = dict(zip(COLUNAS_DATA, (diario, semanal, mensal, anual)))
+    for nivel, df in series.items():
+        if df.empty:
+            continue
+        coluna = COLUNAS_DATA[nivel]
+        mascara = pd.Series(True, index=df.index)
+        if filtros.get("anos"):
+            mascara &= df[coluna].dt.year.isin(filtros["anos"])
+        if filtros.get("meses"):
+            mascara &= df[coluna].dt.month.isin(filtros["meses"])
+        if filtros.get("semanas"):
+            # Semana e dia só são dimensões válidas nas séries diárias/semanais.
+            if nivel in ("diario", "semanal"):
+                mascara &= df[coluna].dt.isocalendar().week.isin(filtros["semanas"])
+        if filtros.get("dias") and nivel == "diario":
+            datas = pd.to_datetime(filtros["dias"], errors="coerce")
+            mascara &= df[coluna].dt.normalize().isin(datas)
+        series[nivel] = df.loc[mascara].reset_index(drop=True)
+    avisos.append("Base agregada sem colunas de sensores no histórico: filtros de dias/semanas podem não refletir os totais mensais/anuais.")
+    return series, avisos
 
-    return (df_total, df_diario, df_semanal, df_mensal, df_anual), messages
-@st.cache_data(show_spinner="Calculando Top Receitas...")
-def obter_top_4_receitas_formatadas():
-    """Encontra as 4 receitas com mais registros e retorna uma lista formatada."""
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def obter_top_4_receitas_formatadas() -> list[str]:
+    registros = carregar_dados_iniciais()
+    if registros.empty or "PROGRAM_Nº" not in registros:
+        return ["Todas"]
+    contagem = registros["PROGRAM_Nº"].dropna().value_counts().head(4)
+    return ["Todas", *[f"{receita} ({valor})" for receita, valor in contagem.items()]]
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def carregar_estatisticas() -> pd.DataFrame:
     try:
-        df = pd.read_excel(config.CAMINHO_EXCEL_URL, sheet_name='Dados Completos', usecols=['PROGRAM_Nº'])
-        contagem = df['PROGRAM_Nº'].astype(str).str.strip().value_counts()
-        top_4_receitas = contagem.nlargest(4).index.tolist()
-        receitas_formatadas = ['Todas'] + [f"{rec} ({contagem[rec]})" for rec in top_4_receitas]
-        return receitas_formatadas
-    except Exception as e:
-        st.error(f"Erro ao carregar a lista de receitas: {e}")
-        return ['Todas']
-
-@st.cache_data(show_spinner=False)
-def carregar_estatisticas():
-    """Carrega dados estatísticos de um arquivo Excel."""
-    return pd.read_excel(config.ESTATISTICA_URL, sheet_name='Sheet1')
+        with _abrir_excel(config.ESTATISTICA_URL) as excel:
+            return pd.read_excel(excel, sheet_name=0)
+    except (OSError, ValueError, requests.RequestException) as erro:
+        st.warning(f"Estatísticas complementares não disponíveis: {erro}")
+        return pd.DataFrame()
