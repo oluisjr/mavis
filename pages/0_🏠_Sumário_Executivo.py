@@ -1,6 +1,6 @@
 """Painel executivo com indicadores heurísticos transparentes."""
 import streamlit as st
-from app import analysis, config, data_loader, session_manager, ui_components
+from app import analysis, config, data_loader, session_manager, ui_components, weld_loader, weld_pipeline
 
 st.set_page_config(page_title="MAVIS | Visão geral", page_icon=config.FAVICON_PATH, layout="wide")
 session_manager.check_authentication()
@@ -16,6 +16,38 @@ ui_components.mensagens_de_origem(avisos)
 if filtros.get("receita_fmt") == "Todas":
     st.info("Selecione uma receita específica para comparar tendências e índices de desvio.")
     st.stop()
+
+# A análise por solda deve preceder os agregados: médias podem esconder oscilações.
+receita_detalhe = str(filtros.get("receita_fmt", "Todas"))
+if receita_detalhe in weld_loader.listar_receitas_detalhadas():
+    try:
+        resumo_soldas, _ = weld_pipeline.analisar_receita(receita_detalhe)
+        ultimas_soldas = resumo_soldas.tail(50)
+        criticas = int(ultimas_soldas["situacao"].eq("Investigação prioritária").sum())
+        variacoes = int(ultimas_soldas["situacao"].eq("Variação a investigar").sum())
+        sem_referencia = int(ultimas_soldas["situacao"].eq("Sem referência contextual").sum())
+        if criticas:
+            st.error(
+                f"Monitoramento ponto a ponto: {criticas} soldas com evidências prioritárias "
+                f"nas últimas {len(ultimas_soldas)} soldas registradas. "
+                "Investigar as curvas originais antes de interpretar as médias."
+            )
+        elif variacoes or sem_referencia:
+            st.warning(
+                f"Análise ponto a ponto: {variacoes} soldas com variações a investigar "
+                f"e {sem_referencia} sem referência suficiente nas últimas "
+                f"{len(ultimas_soldas)} soldas."
+            )
+        else:
+            st.info("Nenhum desvio prioritário nas últimas soldas pelo método atual. "
+                    "Isso não descarta defeitos físicos.")
+        st.page_link("pages/2_🔬_Análise_por_Solda.py",
+                     label="Abrir investigação solda a solda e curvas originais", icon="🔬")
+        st.caption("Os dados são históricos, não há aquisição em tempo real integrada.")
+    except (ValueError, OSError, RuntimeError) as erro:
+        st.warning(f"Análise ponto a ponto indisponível: {erro}")
+else:
+    st.warning("Sem Parquet detalhado nesta receita. As médias diárias podem mascarar falhas rápidas.")
 
 diario = series["diario"]
 mensal = series["mensal"]
