@@ -15,5 +15,9 @@ PAGES = (
 def test_pagina_carrega_sem_excecoes(arquivo):
     app = AppTest.from_file(str(ROOT / "pages" / arquivo), default_timeout=90)
     app.session_state["authenticated"] = True
-    app.run()
+    # AppTest executa cada arquivo como entrypoint isolado; não registra a navegação
+    # multipágina do inicio.py. O link funciona no app real, não nesse harness.
+    from unittest.mock import patch
+    with patch("streamlit.page_link"):
+        app.run()
     assert not app.exception, f"Erro de inicialização: {arquivo}: {app.exception}"
