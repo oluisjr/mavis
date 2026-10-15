@@ -84,3 +84,10 @@ eventos rotulados, dados de manutenção, limites por receita e validação fís
 
 Os Parquets versionados contêm informações industriais. Avalie a necessidade de
 restringir acesso e higienizar o histórico público do Git antes de publicar dados novos.
+
+O monitoramento também considera **quatro pequenas mudanças consecutivas no
+mesmo contexto** para registrar variações persistentes que isoladamente não
+atingiriam o limiar de amplitude. A ausência de referência de comparação
+ocorre em parte das soldas e é indicada explicitamente como inconclusiva,
+nunca como normal. Não usar a classificação automática para liberar ou
+bloquear soldas sem os critérios homologados pelos responsáveis do processo.

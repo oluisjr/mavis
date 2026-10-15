@@ -103,7 +103,9 @@ with tab_metodo:
 
     **Sinalização:** magnitude robusta acima de 3,5 entra em observação;
     desvios mais acentuados ou em múltiplas métricas tornam a investigação prioritária.
-    Esses limiares são de triagem exploratória e precisam ser calibrados com
+    Pequenas mudanças concordantes em quatro soldas consecutivas do mesmo
+    contexto também são registradas para investigação, mesmo que individualmente
+    não atinjam 3,5. Esses limiares são de triagem exploratória e precisam ser calibrados com
     eventos reais e tolerâncias aprovadas pela engenharia.
 
     **Limitações:** uma média por solda ainda é pouco para detectar oscilações,
