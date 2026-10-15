@@ -19,3 +19,9 @@ for name in ("123","1","2","9999"):
     print(" DATAHORA unique ratio",round(df["DATAHORA"].nunique()/max(1,len(df)),5))
     print(" DATAHORA_monotonic",bool(df["DATAHORA"].is_monotonic_increasing))
     print(" WELDNº_NULL",round(df["WELDNº"].isna().mean()*100,2),"MEASP_NUNIQUE",df["MeasP"].nunique())
+
+    if name=="123":
+        row=df.drop_duplicates(["WELDNº"]).copy()
+        for grouping in (["PROGRAM_Nº"],["PROGRAM_Nº","MeasP"],["PROGRAM_Nº","WELDNº"]):
+            counts=row.groupby(grouping,dropna=False).size()
+            print(" CONTEXT",repr(grouping),"GROUPS",len(counts),"MED",float(counts.median()),"PERCENT_12_PLUS",round((counts>=12).mean()*100,1))
