@@ -1,58 +1,40 @@
+"""Página inicial do MAVIS. Execute: streamlit run inicio.py."""
+import hmac
+import os
 import streamlit as st
-from app import config, ui_components, session_manager
+from app import config, session_manager, ui_components
 
-# --- Inicializa o Estado da Sessão ---
-# Garante que as chaves de autenticação e filtros sempre existam
+st.set_page_config(page_title="MAVIS | Acesso", page_icon=config.FAVICON_PATH, layout="centered")
 session_manager.initialize_session_state()
-
-# --- Configuração da Página de Login ---
-st.set_page_config(
-    page_title="MAVIS - Login",
-    layout="centered",
-    initial_sidebar_state="collapsed", # A sidebar começa fechada
-    page_icon=config.FAVICON_PATH
-)
-
-# --- CORREÇÃO DE SEGURANÇA APLICADA AQUI ---
-# Esconde TODA a navegação da barra lateral nesta página.
 ui_components.hide_sidebar_nav()
-
-
-# --- Renderização do Cabeçalho ---
 ui_components.render_mavis_header()
-st.markdown("---")
 
-# --- Formulário e Lógica de Login ---
-def check_password():
-    #Função que renderiza o campo de senha e verifica a autenticação.
-    def password_entered():
-        #Função chamada sempre que o texto na caixa de senha muda.
-        # st.secrets é a forma segura do Streamlit Cloud de ler as suas senhas
-        valid_passwords = st.secrets.get("VALID_PASSWORDS", "").split(',')
-        
-        if st.session_state.get("password") in valid_passwords:
-            st.session_state.authenticated = True
-            if "password" in st.session_state:
-                del st.session_state["password"]
-        else:
-            st.session_state.authenticated = False
-            if st.session_state.get("password"):
-                st.error("Senha incorreta. Tente novamente.")
+def _senhas():
+    try:
+        valor = st.secrets.get("VALID_PASSWORDS", "")
+    except (OSError, FileNotFoundError):
+        valor = ""
+    if isinstance(valor, (list, tuple)):
+        candidatas = [str(item) for item in valor]
+    else:
+        candidatas = str(valor or os.getenv("VALID_PASSWORDS", "")).split(",")
+    return [senha.strip() for senha in candidatas if senha.strip()]
 
-    st.text_input(
-        "Por favor, insira a senha para aceder ao dashboard:",
-        type="password",
-        on_change=password_entered,
-        key="password"
-    )
-
-# --- Lógica de Acesso ---
-if not st.session_state.get('authenticated', False):
-    check_password()
-else:
-    st.success("Login bem-sucedido! A redirecionar...")
+if st.session_state.authenticated:
     st.switch_page("pages/0_🏠_Sumário_Executivo.py")
 
+st.subheader("Acesso restrito")
+st.caption("Dados industriais. Consulte somente com autorização.")
+with st.form("login"):
+    senha = st.text_input("Senha", type="password", autocomplete="off")
+    entrar = st.form_submit_button("Entrar", use_container_width=True)
 
-
-
+if entrar:
+    configuradas = _senhas()
+    if not configuradas:
+        st.error("Autenticação não configurada. Defina VALID_PASSWORDS em Secrets ou no ambiente.")
+    elif any(hmac.compare_digest(senha, válida) for válida in configuradas):
+        st.session_state.authenticated = True
+        st.switch_page("pages/0_🏠_Sumário_Executivo.py")
+    else:
+        st.error("Credenciais inválidas.")
